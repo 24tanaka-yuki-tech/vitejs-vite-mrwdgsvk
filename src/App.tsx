@@ -88,6 +88,7 @@ export default function App() {
   };
 
   const openDetail = (entry) => { setSelected(entry); setView("detail"); };
+  const deleteEntry = (id, e) => { e.stopPropagation(); setEntries(p => p.filter(en => en.id !== id)); };
 
   return (
     <div style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif", background: "#F2F2F7", minHeight: "100vh", color: "#000" }}>
@@ -138,10 +139,11 @@ export default function App() {
           <div style={{ fontSize: 34, fontWeight: 700, letterSpacing: "-0.5px", marginBottom: 20 }}>Collection</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 14 }}>
             {entries.map(entry => (
-              <div key={entry.id} className="card" onClick={() => openDetail(entry)} style={{ background: "#fff", borderRadius: 16, overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.07)" }}>
+              <div key={entry.id} className="card" onClick={() => openDetail(entry)} style={{ background: "#fff", borderRadius: 16, overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.07)", position: "relative" }}>
                 <div style={{ height: 150, background: entry.color, overflow: "hidden" }}>
                   {entry.image && <img src={entry.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
                 </div>
+                <button onClick={(e) => deleteEntry(entry.id, e)} style={{ position: "absolute", top: 10, right: 10, width: 28, height: 28, borderRadius: 99, background: "rgba(0,0,0,0.5)", border: "none", color: "#fff", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>×</button>
                 <div style={{ padding: "14px 16px 16px" }}>
                   <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.title}</div>
                   <div style={{ fontSize: 13, color: "#8E8E93", marginBottom: 12 }}>{entry.source} · {entry.date}</div>
