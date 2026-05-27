@@ -31,7 +31,17 @@ export default function App() {
   const [sheetMode, setSheetMode] = useState(null);
   const [formEntry, setFormEntry] = useState(EMPTY_ENTRY);
   const [imagePreview, setImagePreview] = useState(false);
+  const [sharedEntries, setSharedEntries] = useState([]);
   const fileInputRef = useRef(null);
+
+  // 詳細画面の共有エントリーをリアルタイム取得
+  useEffect(() => {
+    if (!selected?.projectId) { setSharedEntries([]); return; }
+    const unsub = onSnapshot(collection(db, "projects", selected.projectId, "entries"), (snap) => {
+      setSharedEntries(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return () => unsub();
+  }, [selected?.projectId]);
 
   // 共同プロジェクトのstate
   const [projectData, setProjectData] = useState(null);
@@ -108,7 +118,10 @@ export default function App() {
       source: entry.source,
       createdAt: serverTimestamp(),
     });
-    const url = `${window.location.origin}/?project=${docRef.id}`;
+    const pid = docRef.id;
+    setEntries(p => p.map(e => e.id === entry.id ? { ...e, projectId: pid } : e));
+    setSelected(s => s ? { ...s, projectId: pid } : s);
+    const url = `${window.location.origin}/?project=${pid}`;
     setProjectUrl(url);
     setCreatingProject(true);
   };
@@ -138,6 +151,25 @@ export default function App() {
       memo: formEntry.memo || "",
       createdAt: serverTimestamp(),
     });
+    // 自分のCollectionにも追加
+    const newEntry = {
+      id: Date.now(),
+      title: projectData.title,
+      source: projectData.source || "共有プロジェクト",
+      image: projectData.image || null,
+      pdfData: null,
+      color: "#8B9E8F",
+      tags: formEntry.tags,
+      answers: formEntry.answers,
+      memo: formEntry.memo || "",
+      date: new Date().toLocaleDateString("ja-JP").replace(/\//g, "."),
+      projectId: projectId,
+    };
+    try {
+      const existing = localStorage.getItem("naosu-entries");
+      const existingEntries = existing ? JSON.parse(existing) : [];
+      localStorage.setItem("naosu-entries", JSON.stringify([...existingEntries, newEntry]));
+    } catch {}
     setProjectSubmitted(true);
   };
 
@@ -408,6 +440,44 @@ export default function App() {
                 <div style={{ fontSize: 15, lineHeight: 1.7, color: selected.memo ? "#000" : "#C7C7CC" }}>{selected.memo || "—"}</div>
               </div>
             </div>
+
+            {/* みんなの解剖 */}
+            {selected.projectId && (
+              <div style={{ marginTop: 32 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                  <div style={{ fontSize: 17, fontWeight: 600 }}>みんなの解剖</div>
+                  <span style={{ fontSize: 13, color: "#8E8E93" }}>{sharedEntries.length}件</span>
+                </div>
+                {sharedEntries.length === 0 ? (
+                  <div style={{ background: "#fff", borderRadius: 12, padding: "20px", textAlign: "center", color: "#8E8E93", fontSize: 14 }}>まだ誰も解剖していない</div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    {sharedEntries.map(entry => (
+                      <div key={entry.id} style={{ background: "#fff", borderRadius: 14, padding: "16px 18px" }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: "#007AFF", marginBottom: 10 }}>{entry.userName}</div>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 12 }}>
+                          {(entry.tags || []).map(tag => (
+                            <span key={tag} style={{ fontSize: 11, background: "#F2F2F7", color: "#3C3C43", padding: "3px 9px", borderRadius: 20, fontWeight: 500 }}>{tag}</span>
+                          ))}
+                        </div>
+                        {QUESTIONS.map(q => entry.answers?.[q.id] && (
+                          <div key={q.id} style={{ marginBottom: 8 }}>
+                            <div style={{ fontSize: 11, color: "#8E8E93", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 3 }}>{q.label}</div>
+                            <div style={{ fontSize: 13, lineHeight: 1.6 }}>{entry.answers[q.id]}</div>
+                          </div>
+                        ))}
+                        {entry.memo && (
+                          <div>
+                            <div style={{ fontSize: 11, color: "#8E8E93", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 3 }}>その他メモ</div>
+                            <div style={{ fontSize: 13, lineHeight: 1.6 }}>{entry.memo}</div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </main>
       )}
