@@ -246,9 +246,12 @@ export default function App() {
         <style>{`* { box-sizing: border-box; margin: 0; padding: 0; } textarea, input { font-family: inherit; outline: none; } textarea { resize: none; }`}</style>
 
         {/* ヘッダー */}
-        <div style={{ background: "rgba(242,242,247,0.92)", backdropFilter: "blur(20px)", borderBottom: "0.5px solid rgba(0,0,0,0.12)", padding: "14px 20px", position: "sticky", top: 0, zIndex: 100 }}>
-          <div style={{ fontSize: 13, color: "#8E8E93", marginBottom: 2 }}>共同解剖プロジェクト</div>
-          <div style={{ fontSize: 20, fontWeight: 700 }}>{projectData.title}</div>
+        <div style={{ background: "rgba(242,242,247,0.92)", backdropFilter: "blur(20px)", borderBottom: "0.5px solid rgba(0,0,0,0.12)", padding: "0 20px", height: 52, display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100 }}>
+          <button onClick={() => window.location.href = window.location.origin} style={{ background: "none", border: "none", color: "#007AFF", fontSize: 17, cursor: "pointer", display: "flex", alignItems: "center", gap: 4, fontFamily: "inherit" }}>
+            <span style={{ fontSize: 20 }}>‹</span> ホーム
+          </button>
+          <div style={{ fontSize: 15, fontWeight: 600 }}>{projectData.title}</div>
+          <div style={{ width: 60 }} />
         </div>
 
         {/* 作品画像 */}
