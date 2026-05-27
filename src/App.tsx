@@ -116,6 +116,9 @@ export default function App() {
       title: entry.title,
       image: entry.image === "pdf" ? null : entry.image,
       source: entry.source,
+      ownerAnswers: entry.answers,
+      ownerTags: entry.tags,
+      ownerMemo: entry.memo || "",
       createdAt: serverTimestamp(),
     });
     const pid = docRef.id;
@@ -275,6 +278,31 @@ export default function App() {
             <div>
               <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>みんなの解剖</div>
               <div style={{ fontSize: 15, color: "#8E8E93", marginBottom: 20 }}>{projectEntries.length}人が参加</div>
+              
+              {/* 共有主の考察 */}
+              {projectData.ownerAnswers && (
+                <div style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", marginBottom: 12, borderLeft: "3px solid #007AFF" }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "#007AFF", marginBottom: 10 }}>共有者の考察</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 12 }}>
+                    {(projectData.ownerTags || []).map(tag => (
+                      <span key={tag} style={{ fontSize: 11, background: "#F2F2F7", color: "#3C3C43", padding: "3px 9px", borderRadius: 20, fontWeight: 500 }}>{tag}</span>
+                    ))}
+                  </div>
+                  {QUESTIONS.map(q => projectData.ownerAnswers?.[q.id] && (
+                    <div key={q.id} style={{ marginBottom: 8 }}>
+                      <div style={{ fontSize: 11, color: "#8E8E93", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 3 }}>{q.label}</div>
+                      <div style={{ fontSize: 13, lineHeight: 1.6 }}>{projectData.ownerAnswers[q.id]}</div>
+                    </div>
+                  ))}
+                  {projectData.ownerMemo && (
+                    <div>
+                      <div style={{ fontSize: 11, color: "#8E8E93", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 3 }}>その他メモ</div>
+                      <div style={{ fontSize: 13, lineHeight: 1.6 }}>{projectData.ownerMemo}</div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {projectEntries.map(entry => (
                   <div key={entry.id} style={{ background: "#fff", borderRadius: 16, padding: "18px 20px" }}>
