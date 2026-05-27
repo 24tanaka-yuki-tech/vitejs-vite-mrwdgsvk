@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import { db } from "./firebase";
 import { collection, addDoc, onSnapshot, doc, getDoc, serverTimestamp } from "firebase/firestore";
 
+const ICONS = ["🎨","🖌️","✏️","📐","💡","🔍","🌸","🌙","⭐","🔥","💫","🌊","🦋","🌿","🎯","🦄","🐼","🐸","🦊","🐱"];
+
 const TAGS = ["タイポグラフィ", "余白", "配色", "レイアウト", "世界観", "構成", "テクスチャ", "グリッド", "コンセプト", "視線誘導", "テーマの面白さ", "課題解決の仕方"];
 const QUESTIONS = [
   { id: "q1", label: "どこに惹かれた？", placeholder: "最初に目が止まった場所" },
@@ -20,6 +22,13 @@ export default function App() {
   // URLからprojectIdを取得
   const urlParams = new URLSearchParams(window.location.search);
   const projectId = urlParams.get("project");
+
+  // プロフィール
+  const [userProfile, setUserProfile] = useState(() => {
+    try { const s = localStorage.getItem("naosu-profile"); return s ? JSON.parse(s) : null; } catch { return null; }
+  });
+  const [settingProfile, setSettingProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({ name: "", icon: "🎨" });
 
   // 個人モードのstate
   const [view, setView] = useState("home");
@@ -69,6 +78,14 @@ export default function App() {
     });
     return () => unsub();
   }, [projectId]);
+
+  // プロフィールがあれば共有プロジェクトの名前を自動設定
+  useEffect(() => {
+    if (userProfile && projectId) {
+      setUserName(userProfile.name);
+      setUserNameSet(true);
+    }
+  }, [userProfile, projectId]);
 
   const tagCounts = {};
   entries.forEach(e => e.tags.forEach(t => { tagCounts[t] = (tagCounts[t] || 0) + 1; }));
@@ -149,6 +166,7 @@ export default function App() {
     QUESTIONS.forEach(q => { answers[q.id] = formEntry.answers[q.id] || ""; });
     await addDoc(collection(db, "projects", projectId, "entries"), {
       userName,
+      userIcon: userProfile?.icon || "🎨",
       tags: formEntry.tags,
       answers,
       memo: formEntry.memo || "",
@@ -376,13 +394,16 @@ export default function App() {
               <span style={{ fontSize: 20 }}>‹</span> Library
             </button>
           ) : (
-            <div style={{ fontSize: 17, fontWeight: 600 }}>Library</div>
+            <button onClick={() => setSettingProfile(true)} style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+              <div style={{ width: 30, height: 30, borderRadius: 99, background: "#E5E5EA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>{userProfile?.icon || "🎨"}</div>
+              <div style={{ fontSize: 15, fontWeight: 600 }}>{userProfile?.name || "Library"}</div>
+            </button>
           )}
           {view === "detail" ? (
             <div style={{ display: "flex", gap: 16 }}>
-            <button className="sf-btn" onClick={() => shareProject(selected)} style={{ background: "none", color: "#007AFF", fontSize: 15 }}>共有</button>
-            <button className="sf-btn" onClick={() => openEdit(selected)} style={{ background: "none", color: "#007AFF", fontSize: 15 }}>編集</button>
-          </div>
+              <button className="sf-btn" onClick={() => shareProject(selected)} style={{ background: "none", color: "#007AFF", fontSize: 15 }}>共有</button>
+              <button className="sf-btn" onClick={() => openEdit(selected)} style={{ background: "none", color: "#007AFF", fontSize: 15 }}>編集</button>
+            </div>
           ) : (
             <button className="sf-btn" onClick={openCreate} style={{ background: "none", color: "#007AFF", fontSize: 28, lineHeight: 1, fontWeight: 300 }}>+</button>
           )}
@@ -485,7 +506,7 @@ export default function App() {
                   <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                     {sharedEntries.map(entry => (
                       <div key={entry.id} style={{ background: "#fff", borderRadius: 14, padding: "16px 18px" }}>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: "#007AFF", marginBottom: 10 }}>{entry.userName}</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}><div style={{ width: 28, height: 28, borderRadius: 99, background: "#E5E5EA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>{entry.userIcon || "🎨"}</div><div style={{ fontSize: 14, fontWeight: 600, color: "#007AFF" }}>{entry.userName}</div></div>
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 12 }}>
                           {(entry.tags || []).map(tag => (
                             <span key={tag} style={{ fontSize: 11, background: "#F2F2F7", color: "#3C3C43", padding: "3px 9px", borderRadius: 20, fontWeight: 500 }}>{tag}</span>
@@ -607,6 +628,36 @@ export default function App() {
       )}
 
       {sheetMode && <FormSheet />}
+
+      {/* プロフィール設定 */}
+      {(!userProfile || settingProfile) && (
+        <div style={{ position: "fixed", inset: 0, background: settingProfile ? "rgba(0,0,0,0.4)" : "#F2F2F7", display: "flex", alignItems: settingProfile ? "flex-end" : "center", justifyContent: "center", zIndex: 300 }}>
+          <div style={{ background: "#F2F2F7", width: "100%", maxWidth: 480, borderRadius: settingProfile ? "20px 20px 0 0" : 24, padding: "32px 24px 40px" }}>
+            {settingProfile && (
+              <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
+                <div style={{ width: 36, height: 4, background: "#D1D1D6", borderRadius: 99 }} />
+              </div>
+            )}
+            <div style={{ textAlign: "center", marginBottom: 28 }}>
+              <div style={{ width: 64, height: 64, borderRadius: 99, background: "#E5E5EA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, margin: "0 auto 16px" }}>{profileForm.icon}</div>
+              <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>{settingProfile ? "プロフィール編集" : "はじめまして"}</div>
+              {!settingProfile && <div style={{ fontSize: 15, color: "#8E8E93" }}>名前とアイコンを設定しよう</div>}
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center", marginBottom: 20 }}>
+              {ICONS.map(icon => (
+                <button key={icon} onClick={() => setProfileForm(p => ({ ...p, icon }))} style={{ width: 44, height: 44, borderRadius: 12, background: profileForm.icon === icon ? "#007AFF" : "#fff", fontSize: 22, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>{icon}</button>
+              ))}
+            </div>
+            <div style={{ background: "#fff", borderRadius: 14, marginBottom: 16 }}>
+              <input value={profileForm.name} onChange={e => setProfileForm(p => ({ ...p, name: e.target.value }))} placeholder="名前を入力" style={{ display: "block", width: "100%", padding: "14px 16px", fontSize: 16, border: "none", background: "transparent", fontFamily: "inherit", outline: "none", borderRadius: 14 }} />
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              {settingProfile && <button onClick={() => setSettingProfile(false)} style={{ flex: 1, background: "#E5E5EA", color: "#000", border: "none", padding: "14px", borderRadius: 12, fontSize: 16, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>キャンセル</button>}
+              <button onClick={() => { if (!profileForm.name) return; const p = { name: profileForm.name, icon: profileForm.icon }; localStorage.setItem("naosu-profile", JSON.stringify(p)); setUserProfile(p); setSettingProfile(false); }} style={{ flex: 1, background: "#007AFF", color: "#fff", border: "none", padding: "14px", borderRadius: 12, fontSize: 16, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>{settingProfile ? "保存" : "始める"}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
