@@ -41,11 +41,17 @@ export default function App() {
   const [formEntry, setFormEntry] = useState(EMPTY_ENTRY);
   const [imagePreview, setImagePreview] = useState(false);
   const [sharedEntries, setSharedEntries] = useState([]);
+  const [detailProjectData, setDetailProjectData] = useState(null);
   const fileInputRef = useRef(null);
 
   // 詳細画面の共有エントリーをリアルタイム取得
   useEffect(() => {
-    if (!selected?.projectId) { setSharedEntries([]); return; }
+    if (!selected?.projectId) { setSharedEntries([]); setDetailProjectData(null); return; }
+    const fetchDetail = async () => {
+      const snap = await getDoc(doc(db, "projects", selected.projectId));
+      if (snap.exists()) setDetailProjectData(snap.data());
+    };
+    fetchDetail();
     const unsub = onSnapshot(collection(db, "projects", selected.projectId, "entries"), (snap) => {
       setSharedEntries(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     });
@@ -500,6 +506,33 @@ export default function App() {
                   <div style={{ fontSize: 17, fontWeight: 600 }}>みんなの解剖</div>
                   <span style={{ fontSize: 13, color: "#8E8E93" }}>{sharedEntries.length}件</span>
                 </div>
+                {/* 共有者の考察 */}
+                {detailProjectData?.ownerAnswers && (
+                  <div style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", marginBottom: 10, borderLeft: "3px solid #007AFF" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                      <div style={{ width: 28, height: 28, borderRadius: 99, background: "#007AFF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>{userProfile?.icon || "🎨"}</div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: "#007AFF" }}>共有者の考察</div>
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 10 }}>
+                      {(detailProjectData.ownerTags || []).map(tag => (
+                        <span key={tag} style={{ fontSize: 11, background: "#F2F2F7", color: "#3C3C43", padding: "3px 9px", borderRadius: 20, fontWeight: 500 }}>{tag}</span>
+                      ))}
+                    </div>
+                    {QUESTIONS.map(q => detailProjectData.ownerAnswers?.[q.id] && (
+                      <div key={q.id} style={{ marginBottom: 8 }}>
+                        <div style={{ fontSize: 11, color: "#8E8E93", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 3 }}>{q.label}</div>
+                        <div style={{ fontSize: 13, lineHeight: 1.6 }}>{detailProjectData.ownerAnswers[q.id]}</div>
+                      </div>
+                    ))}
+                    {detailProjectData.ownerMemo && (
+                      <div>
+                        <div style={{ fontSize: 11, color: "#8E8E93", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 3 }}>その他メモ</div>
+                        <div style={{ fontSize: 13, lineHeight: 1.6 }}>{detailProjectData.ownerMemo}</div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {sharedEntries.length === 0 ? (
                   <div style={{ background: "#fff", borderRadius: 12, padding: "20px", textAlign: "center", color: "#8E8E93", fontSize: 14 }}>まだ誰も解剖していない</div>
                 ) : (
