@@ -660,7 +660,7 @@ export default function App() {
         </div>
       )}
 
-      {sheetMode && <FormSheet />}
+{sheetMode && FormSheet()}
 
       {/* プロフィール設定 */}
       {(!userProfile || settingProfile) && (
