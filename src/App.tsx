@@ -48,9 +48,14 @@ function FormSheetComponent({ closeSheet, saveEntry, sheetMode, fileInputRef, ha
             <input defaultValue={formEntry.title} onBlur={e => setFormEntry(p => ({ ...p, title: e.target.value }))} placeholder="作品名" style={{ ...inputStyle, borderBottom: "0.5px solid #E5E5EA" }} />
             <input defaultValue={formEntry.source} onBlur={e => setFormEntry(p => ({ ...p, source: e.target.value }))} placeholder="どこで見た？（re:designer, Behance...）" style={inputStyle} />
           </div>
-          <button onClick={generateWithAI} disabled={generatingAI} style={{ width: "100%", background: generatingAI ? "#E5E5EA" : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", color: generatingAI ? "#8E8E93" : "#fff", border: "none", padding: "14px", borderRadius: 14, fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-            {generatingAI ? <>⏳ AIが解剖中...</> : <>✨ AIで解剖してみる</>}
+          <button onClick={generateWithAI} disabled={generatingAI} style={{ width: "100%", background: generatingAI ? "#5856D6" : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", color: "#fff", border: "none", padding: "16px", borderRadius: 14, fontSize: 15, fontWeight: 600, cursor: generatingAI ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: generatingAI ? 0.8 : 1 }}>
+            {generatingAI ? (
+              <><span style={{ display: "inline-block", animation: "spin 1s linear infinite", fontSize: 18 }}>⏳</span> AI解剖中... しばらくお待ちください</>
+            ) : (
+              <>✨ AIで解剖してみる</>
+            )}
           </button>
+          <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
           <div style={{ background: "#fff", borderRadius: 14, padding: "14px 16px" }}>
             <div style={{ fontSize: 12, color: "#8E8E93", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>惹かれた要素</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
