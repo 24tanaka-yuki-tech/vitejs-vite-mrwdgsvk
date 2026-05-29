@@ -45,8 +45,8 @@ function FormSheetComponent({ closeSheet, saveEntry, sheetMode, fileInputRef, ha
             </div>
           )}
           <div style={{ background: "#fff", borderRadius: 14, overflow: "hidden" }}>
-            <input value={formEntry.title} onChange={e => setFormEntry(p => ({ ...p, title: e.target.value }))} placeholder="作品名" style={{ ...inputStyle, borderBottom: "0.5px solid #E5E5EA" }} />
-            <input value={formEntry.source} onChange={e => setFormEntry(p => ({ ...p, source: e.target.value }))} placeholder="どこで見た？（re:designer, Behance...）" style={inputStyle} />
+            <input defaultValue={formEntry.title} onBlur={e => setFormEntry(p => ({ ...p, title: e.target.value }))} placeholder="作品名" style={{ ...inputStyle, borderBottom: "0.5px solid #E5E5EA" }} />
+            <input defaultValue={formEntry.source} onBlur={e => setFormEntry(p => ({ ...p, source: e.target.value }))} placeholder="どこで見た？（re:designer, Behance...）" style={inputStyle} />
           </div>
           <button onClick={generateWithAI} disabled={generatingAI || (!formEntry.title && !formEntry.url)} style={{ width: "100%", background: generatingAI ? "#E5E5EA" : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", color: generatingAI ? "#8E8E93" : "#fff", border: "none", padding: "14px", borderRadius: 14, fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
             {generatingAI ? <>⏳ AIが解剖中...</> : <>✨ AIで解剖してみる</>}
@@ -63,12 +63,12 @@ function FormSheetComponent({ closeSheet, saveEntry, sheetMode, fileInputRef, ha
             {QUESTIONS.map((q, i) => (
               <div key={q.id} style={{ borderBottom: "0.5px solid #E5E5EA", padding: "14px 16px" }}>
                 <div style={{ fontSize: 12, color: "#8E8E93", fontWeight: 600, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>{String(i + 1).padStart(2, "0")} · {q.label}</div>
-                <textarea value={formEntry.answers[q.id]} onChange={e => setFormEntry(p => ({ ...p, answers: { ...p.answers, [q.id]: e.target.value } }))} rows={2} placeholder={q.placeholder} style={{ width: "100%", border: "none", fontSize: 15, color: "#000", background: "transparent", lineHeight: 1.5, fontFamily: "inherit", resize: "none", outline: "none" }} />
+                <textarea key={`${q.id}-${formEntry.answers[q.id] ? "filled" : "empty"}`} defaultValue={formEntry.answers[q.id]} onBlur={e => setFormEntry(p => ({ ...p, answers: { ...p.answers, [q.id]: e.target.value } }))} rows={2} placeholder={q.placeholder} style={{ width: "100%", border: "none", fontSize: 15, color: "#000", background: "transparent", lineHeight: 1.5, fontFamily: "inherit", resize: "none", outline: "none" }} />
               </div>
             ))}
             <div style={{ padding: "14px 16px" }}>
               <div style={{ fontSize: 12, color: "#8E8E93", fontWeight: 600, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>その他 · メモ</div>
-              <textarea value={formEntry.memo || ""} onChange={e => setFormEntry(p => ({ ...p, memo: e.target.value }))} rows={3} placeholder="上記以外で気になったこと" style={{ width: "100%", border: "none", fontSize: 15, color: "#000", background: "transparent", lineHeight: 1.5, fontFamily: "inherit", resize: "none", outline: "none" }} />
+              <textarea key={`memo-${formEntry.memo ? "filled" : "empty"}`} defaultValue={formEntry.memo || ""} onBlur={e => setFormEntry(p => ({ ...p, memo: e.target.value }))} rows={3} placeholder="上記以外で気になったこと" style={{ width: "100%", border: "none", fontSize: 15, color: "#000", background: "transparent", lineHeight: 1.5, fontFamily: "inherit", resize: "none", outline: "none" }} />
             </div>
           </div>
         </div>
