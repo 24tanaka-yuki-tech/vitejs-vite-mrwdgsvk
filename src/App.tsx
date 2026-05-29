@@ -106,20 +106,26 @@ export default function App() {
     if (!urlInput) return;
     setFetchingUrl(true);
     try {
-      const res = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(urlInput)}&screenshot=true&meta=false&embed=screenshot.url`);
-      const data = await res.json();
-      const imageUrl = data?.data?.screenshot?.url || data?.data?.image?.url;
-      const title = data?.data?.title || "";
       const hostname = new URL(urlInput).hostname.replace("www.", "");
+      // faviconをサムネイルとして使用（確実にCORSなし）
+      const faviconUrl = `https://www.google.com/s2/favicons?domain=${hostname}&sz=256`;
+      // タイトルはmicrolinkで取得
+      let title = "";
+      try {
+        const res = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(urlInput)}`);
+        const data = await res.json();
+        title = data?.data?.title || "";
+      } catch {}
       setFormEntry(p => ({
         ...p,
         url: urlInput,
         title: p.title || title,
         source: p.source || hostname,
-        ...(imageUrl ? { image: imageUrl, pdfData: null } : {})
+        image: faviconUrl,
+        pdfData: null,
+        color: "#1A1A2E",
       }));
     } catch {
-      // 取得失敗してもURLだけ保存
       try {
         const hostname = new URL(urlInput).hostname.replace("www.", "");
         setFormEntry(p => ({ ...p, url: urlInput, source: p.source || hostname }));
