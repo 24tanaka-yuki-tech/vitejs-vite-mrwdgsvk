@@ -6,7 +6,7 @@ const ICONS = ["🎨","🖌️","✏️","📐","💡","🔍","🌸","🌙","⭐
 
 const inputStyle = { display: "block", width: "100%", padding: "14px 16px", fontSize: 15, border: "none", background: "transparent", fontFamily: "inherit", outline: "none" };
 
-function FormSheetComponent({ closeSheet, saveEntry, sheetMode, fileInputRef, handleImageUpload, urlInput, setUrlInput, fetchingUrl, handleUrlFetch, formEntry, setFormEntry, generatingAI, generateWithAI, TAGS, QUESTIONS }) {
+function FormSheetComponent({ closeSheet, saveEntry, sheetMode, fileInputRef, handleImageUpload, urlInput, setUrlInput, fetchingUrl, handleUrlFetch, formEntry, setFormEntry, generatingAI, generateWithAI, aiVersion, TAGS, QUESTIONS }) {
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 200 }}>
       <div style={{ background: "#F2F2F7", width: "100%", maxWidth: 640, maxHeight: "90vh", overflowY: "auto", borderRadius: "20px 20px 0 0", padding: "0 0 32px" }}>
@@ -63,12 +63,12 @@ function FormSheetComponent({ closeSheet, saveEntry, sheetMode, fileInputRef, ha
             {QUESTIONS.map((q, i) => (
               <div key={q.id} style={{ borderBottom: "0.5px solid #E5E5EA", padding: "14px 16px" }}>
                 <div style={{ fontSize: 12, color: "#8E8E93", fontWeight: 600, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>{String(i + 1).padStart(2, "0")} · {q.label}</div>
-                <textarea key={`${q.id}-${formEntry.answers[q.id] ? "filled" : "empty"}`} defaultValue={formEntry.answers[q.id]} onBlur={e => setFormEntry(p => ({ ...p, answers: { ...p.answers, [q.id]: e.target.value } }))} rows={2} placeholder={q.placeholder} style={{ width: "100%", border: "none", fontSize: 15, color: "#000", background: "transparent", lineHeight: 1.5, fontFamily: "inherit", resize: "none", outline: "none" }} />
+                <textarea key={`${q.id}-${aiVersion}`} defaultValue={formEntry.answers[q.id]} onBlur={e => setFormEntry(p => ({ ...p, answers: { ...p.answers, [q.id]: e.target.value } }))} rows={2} placeholder={q.placeholder} style={{ width: "100%", border: "none", fontSize: 15, color: "#000", background: "transparent", lineHeight: 1.5, fontFamily: "inherit", resize: "none", outline: "none" }} />
               </div>
             ))}
             <div style={{ padding: "14px 16px" }}>
               <div style={{ fontSize: 12, color: "#8E8E93", fontWeight: 600, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>その他 · メモ</div>
-              <textarea key={`memo-${formEntry.memo ? "filled" : "empty"}`} defaultValue={formEntry.memo || ""} onBlur={e => setFormEntry(p => ({ ...p, memo: e.target.value }))} rows={3} placeholder="上記以外で気になったこと" style={{ width: "100%", border: "none", fontSize: 15, color: "#000", background: "transparent", lineHeight: 1.5, fontFamily: "inherit", resize: "none", outline: "none" }} />
+              <textarea key={`memo-${aiVersion}`} defaultValue={formEntry.memo || ""} onBlur={e => setFormEntry(p => ({ ...p, memo: e.target.value }))} rows={3} placeholder="上記以外で気になったこと" style={{ width: "100%", border: "none", fontSize: 15, color: "#000", background: "transparent", lineHeight: 1.5, fontFamily: "inherit", resize: "none", outline: "none" }} />
             </div>
           </div>
         </div>
@@ -208,6 +208,7 @@ export default function App() {
   };
 
   const [generatingAI, setGeneratingAI] = useState(false);
+  const [aiVersion, setAiVersion] = useState(0);
 
   const generateWithAI = async () => {
     const titleEl = document.querySelector('input[placeholder="作品名"]');
@@ -278,6 +279,7 @@ ${jsonInstruction}` }];
           q4: parsed.q4 || p.answers.q4,
         }
       }));
+      setAiVersion(v => v + 1);
     } catch (e) {
       console.error(e);
     }
@@ -388,7 +390,7 @@ ${jsonInstruction}` }];
 
   // FormSheetはファイル上部で外部定義済み
 
-  const formSheetProps = { closeSheet, saveEntry, sheetMode, fileInputRef, handleImageUpload, urlInput, setUrlInput, fetchingUrl, handleUrlFetch, formEntry, setFormEntry, generatingAI, generateWithAI, TAGS, QUESTIONS };
+  const formSheetProps = { closeSheet, saveEntry, sheetMode, fileInputRef, handleImageUpload, urlInput, setUrlInput, fetchingUrl, handleUrlFetch, formEntry, setFormEntry, generatingAI, generateWithAI, aiVersion, TAGS, QUESTIONS };
 
   const _unused = { display: "block", width: "100%", padding: "14px 16px", fontSize: 15, border: "none", background: "transparent", fontFamily: "inherit", outline: "none" };
 
