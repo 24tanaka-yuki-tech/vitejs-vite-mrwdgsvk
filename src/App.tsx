@@ -4,6 +4,79 @@ import { collection, addDoc, onSnapshot, doc, getDoc, serverTimestamp } from "fi
 
 const ICONS = ["🎨","🖌️","✏️","📐","💡","🔍","🌸","🌙","⭐","🔥","💫","🌊","🦋","🌿","🎯","🦄","🐼","🐸","🦊","🐱"];
 
+const inputStyle = { display: "block", width: "100%", padding: "14px 16px", fontSize: 15, border: "none", background: "transparent", fontFamily: "inherit", outline: "none" };
+
+function FormSheetComponent({ closeSheet, saveEntry, sheetMode, fileInputRef, handleImageUpload, urlInput, setUrlInput, fetchingUrl, handleUrlFetch, formEntry, setFormEntry, generatingAI, generateWithAI, TAGS, QUESTIONS }) {
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 200 }}>
+      <div style={{ background: "#F2F2F7", width: "100%", maxWidth: 640, maxHeight: "90vh", overflowY: "auto", borderRadius: "20px 20px 0 0", padding: "0 0 32px" }}>
+        <div style={{ display: "flex", justifyContent: "center", padding: "12px 0 4px" }}>
+          <div style={{ width: 36, height: 4, background: "#D1D1D6", borderRadius: 99 }} />
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 20px 20px" }}>
+          <button onClick={closeSheet} style={{ background: "none", border: "none", color: "#007AFF", fontSize: 17, cursor: "pointer" }}>キャンセル</button>
+          <div style={{ fontSize: 17, fontWeight: 600 }}>{sheetMode === "edit" ? "編集" : "新しい解剖"}</div>
+          <button onClick={saveEntry} style={{ background: "none", border: "none", color: "#007AFF", fontSize: 17, fontWeight: 600, cursor: "pointer" }}>保存</button>
+        </div>
+        <div style={{ padding: "0 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ background: "#fff", borderRadius: 14, display: "flex", overflow: "hidden" }}>
+            <input value={urlInput} onChange={e => setUrlInput(e.target.value)} onKeyDown={e => e.key === "Enter" && handleUrlFetch()} placeholder="URLを貼り付けて自動取得" style={{ flex: 1, padding: "14px 16px", fontSize: 14, border: "none", background: "transparent", fontFamily: "inherit", outline: "none" }} />
+            <button onClick={handleUrlFetch} disabled={fetchingUrl} style={{ background: fetchingUrl ? "#E5E5EA" : "#007AFF", color: fetchingUrl ? "#8E8E93" : "#fff", border: "none", padding: "0 16px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>{fetchingUrl ? "取得中..." : "取得"}</button>
+          </div>
+          <input type="file" accept="image/*,.pdf" ref={fileInputRef} onChange={handleImageUpload} style={{ display: "none" }} />
+          {formEntry.image ? (
+            <div style={{ position: "relative", height: 180, borderRadius: 14, overflow: "hidden", background: formEntry.image === "pdf" ? "#2D2D2D" : "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {formEntry.image === "pdf" ? (
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                  <svg width="48" height="60" viewBox="0 0 48 60" fill="none"><rect width="48" height="60" rx="6" fill="white" fillOpacity="0.2"/><path d="M8 4h24l12 12v40H8V4z" fill="white" fillOpacity="0.9"/><path d="M32 4l12 12H32V4z" fill="white" fillOpacity="0.5"/><text x="24" y="42" textAnchor="middle" fill="#C44B2B" fontSize="10" fontWeight="bold">PDF</text></svg>
+                  <span style={{ color: "rgba(255,255,255,0.8)", fontSize: 12 }}>PDFを追加済み</span>
+                </div>
+              ) : (
+                <img src={formEntry.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} referrerPolicy="no-referrer" />
+              )}
+              <button onClick={() => setFormEntry(p => ({ ...p, image: null, pdfData: null }))} style={{ position: "absolute", top: 10, right: 10, background: "rgba(0,0,0,0.55)", color: "#fff", border: "none", fontSize: 12, padding: "5px 12px", borderRadius: 20, cursor: "pointer", fontWeight: 500 }}>削除</button>
+            </div>
+          ) : (
+            <div onClick={() => fileInputRef.current.click()} style={{ height: 100, background: "#fff", borderRadius: 14, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6, cursor: "pointer" }}>
+              <div style={{ width: 36, height: 36, borderRadius: 99, background: "#F2F2F7", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <span style={{ fontSize: 20, color: "#007AFF" }}>↑</span>
+              </div>
+              <div style={{ fontSize: 13, color: "#8E8E93" }}>画像またはPDFを追加</div>
+            </div>
+          )}
+          <div style={{ background: "#fff", borderRadius: 14, overflow: "hidden" }}>
+            <input value={formEntry.title} onChange={e => setFormEntry(p => ({ ...p, title: e.target.value }))} placeholder="作品名" style={{ ...inputStyle, borderBottom: "0.5px solid #E5E5EA" }} />
+            <input value={formEntry.source} onChange={e => setFormEntry(p => ({ ...p, source: e.target.value }))} placeholder="どこで見た？（re:designer, Behance...）" style={inputStyle} />
+          </div>
+          <button onClick={generateWithAI} disabled={generatingAI || (!formEntry.title && !formEntry.url)} style={{ width: "100%", background: generatingAI ? "#E5E5EA" : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", color: generatingAI ? "#8E8E93" : "#fff", border: "none", padding: "14px", borderRadius: 14, fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+            {generatingAI ? <>⏳ AIが解剖中...</> : <>✨ AIで解剖してみる</>}
+          </button>
+          <div style={{ background: "#fff", borderRadius: 14, padding: "14px 16px" }}>
+            <div style={{ fontSize: 12, color: "#8E8E93", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>惹かれた要素</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {TAGS.map(tag => (
+                <button key={tag} onClick={() => setFormEntry(p => ({ ...p, tags: p.tags.includes(tag) ? p.tags.filter(t => t !== tag) : [...p.tags, tag] }))} style={{ padding: "6px 14px", borderRadius: 20, fontSize: 13, fontWeight: 500, background: formEntry.tags.includes(tag) ? "#007AFF" : "#F2F2F7", color: formEntry.tags.includes(tag) ? "#fff" : "#3C3C43", border: "none", cursor: "pointer", fontFamily: "inherit" }}>{tag}</button>
+              ))}
+            </div>
+          </div>
+          <div style={{ background: "#fff", borderRadius: 14, overflow: "hidden" }}>
+            {QUESTIONS.map((q, i) => (
+              <div key={q.id} style={{ borderBottom: "0.5px solid #E5E5EA", padding: "14px 16px" }}>
+                <div style={{ fontSize: 12, color: "#8E8E93", fontWeight: 600, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>{String(i + 1).padStart(2, "0")} · {q.label}</div>
+                <textarea value={formEntry.answers[q.id]} onChange={e => setFormEntry(p => ({ ...p, answers: { ...p.answers, [q.id]: e.target.value } }))} rows={2} placeholder={q.placeholder} style={{ width: "100%", border: "none", fontSize: 15, color: "#000", background: "transparent", lineHeight: 1.5, fontFamily: "inherit", resize: "none", outline: "none" }} />
+              </div>
+            ))}
+            <div style={{ padding: "14px 16px" }}>
+              <div style={{ fontSize: 12, color: "#8E8E93", fontWeight: 600, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>その他 · メモ</div>
+              <textarea value={formEntry.memo || ""} onChange={e => setFormEntry(p => ({ ...p, memo: e.target.value }))} rows={3} placeholder="上記以外で気になったこと" style={{ width: "100%", border: "none", fontSize: 15, color: "#000", background: "transparent", lineHeight: 1.5, fontFamily: "inherit", resize: "none", outline: "none" }} />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const TAGS = ["タイポグラフィ", "余白", "配色", "レイアウト", "世界観", "構成", "テクスチャ", "グリッド", "コンセプト", "視線誘導", "テーマの面白さ", "課題解決の仕方"];
 const QUESTIONS = [
   { id: "q1", label: "どこに惹かれた？", placeholder: "最初に目が止まった場所" },
@@ -285,85 +358,13 @@ ${formEntry.source ? `出典: ${formEntry.source}` : ""}
     setProjectSubmitted(true);
   };
 
-  const inputStyle = { display: "block", width: "100%", padding: "14px 16px", fontSize: 15, border: "none", background: "transparent", fontFamily: "inherit", outline: "none" };
+  // FormSheetはファイル上部で外部定義済み
 
-  const FormSheet = () => (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 200 }}>
-      <div style={{ background: "#F2F2F7", width: "100%", maxWidth: 640, maxHeight: "90vh", overflowY: "auto", borderRadius: "20px 20px 0 0", padding: "0 0 32px" }}>
-        <div style={{ display: "flex", justifyContent: "center", padding: "12px 0 4px" }}>
-          <div style={{ width: 36, height: 4, background: "#D1D1D6", borderRadius: 99 }} />
-        </div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 20px 20px" }}>
-          <button onClick={closeSheet} style={{ background: "none", border: "none", color: "#007AFF", fontSize: 17, cursor: "pointer" }}>キャンセル</button>
-          <div style={{ fontSize: 17, fontWeight: 600 }}>{sheetMode === "edit" ? "編集" : "新しい解剖"}</div>
-          <button onClick={saveEntry} style={{ background: "none", border: "none", color: "#007AFF", fontSize: 17, fontWeight: 600, cursor: "pointer" }}>保存</button>
-        </div>
-        <div style={{ padding: "0 16px", display: "flex", flexDirection: "column", gap: 10 }}>
-          {/* URL入力 */}
-          <div style={{ background: "#fff", borderRadius: 14, display: "flex", overflow: "hidden" }}>
-            <input value={urlInput} onChange={e => setUrlInput(e.target.value)} onKeyDown={e => e.key === "Enter" && handleUrlFetch()} placeholder="URLを貼り付けて自動取得" style={{ flex: 1, padding: "14px 16px", fontSize: 14, border: "none", background: "transparent", fontFamily: "inherit", outline: "none" }} />
-            <button onClick={handleUrlFetch} disabled={fetchingUrl} style={{ background: fetchingUrl ? "#E5E5EA" : "#007AFF", color: fetchingUrl ? "#8E8E93" : "#fff", border: "none", padding: "0 16px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>{fetchingUrl ? "取得中..." : "取得"}</button>
-          </div>
+  const formSheetProps = { closeSheet, saveEntry, sheetMode, fileInputRef, handleImageUpload, urlInput, setUrlInput, fetchingUrl, handleUrlFetch, formEntry, setFormEntry, generatingAI, generateWithAI, TAGS, QUESTIONS };
 
-          <input type="file" accept="image/*,.pdf" ref={fileInputRef} onChange={handleImageUpload} style={{ display: "none" }} />
-          {formEntry.image ? (
-            <div style={{ position: "relative", height: 180, borderRadius: 14, overflow: "hidden", background: formEntry.image === "pdf" ? "#2D2D2D" : "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              {formEntry.image === "pdf" ? (
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-                  <svg width="48" height="60" viewBox="0 0 48 60" fill="none"><rect width="48" height="60" rx="6" fill="white" fillOpacity="0.2"/><path d="M8 4h24l12 12v40H8V4z" fill="white" fillOpacity="0.9"/><path d="M32 4l12 12H32V4z" fill="white" fillOpacity="0.5"/><text x="24" y="42" textAnchor="middle" fill="#C44B2B" fontSize="10" fontWeight="bold">PDF</text></svg>
-                  <span style={{ color: "rgba(255,255,255,0.8)", fontSize: 12 }}>PDFを追加済み</span>
-                </div>
-              ) : (
-                <img src={formEntry.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} referrerPolicy="no-referrer" />
-              )}
-              <button onClick={() => setFormEntry(p => ({ ...p, image: null, pdfData: null }))} style={{ position: "absolute", top: 10, right: 10, background: "rgba(0,0,0,0.55)", color: "#fff", border: "none", fontSize: 12, padding: "5px 12px", borderRadius: 20, cursor: "pointer", fontWeight: 500 }}>削除</button>
-            </div>
-          ) : (
-            <div onClick={() => fileInputRef.current.click()} style={{ height: 100, background: "#fff", borderRadius: 14, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6, cursor: "pointer" }}>
-              <div style={{ width: 36, height: 36, borderRadius: 99, background: "#F2F2F7", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ fontSize: 20, color: "#007AFF" }}>↑</span>
-              </div>
-              <div style={{ fontSize: 13, color: "#8E8E93" }}>画像またはPDFを追加</div>
-            </div>
-          )}
-          <div style={{ background: "#fff", borderRadius: 14, overflow: "hidden" }}>
-            <input value={formEntry.title} onChange={e => setFormEntry(p => ({ ...p, title: e.target.value }))} placeholder="作品名" style={{ ...inputStyle, borderBottom: "0.5px solid #E5E5EA" }} />
-            <input value={formEntry.source} onChange={e => setFormEntry(p => ({ ...p, source: e.target.value }))} placeholder="どこで見た？（re:designer, Behance...）" style={inputStyle} />
-          </div>
+  const _unused = { display: "block", width: "100%", padding: "14px 16px", fontSize: 15, border: "none", background: "transparent", fontFamily: "inherit", outline: "none" };
 
-          {/* AI解剖ボタン */}
-          <button onClick={generateWithAI} disabled={generatingAI || (!formEntry.title && !formEntry.url)} style={{ width: "100%", background: generatingAI ? "#E5E5EA" : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", color: generatingAI ? "#8E8E93" : "#fff", border: "none", padding: "14px", borderRadius: 14, fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-            {generatingAI ? (
-              <>⏳ AIが解剖中...</>
-            ) : (
-              <>✨ AIで解剖の草案を生成</>
-            )}
-          </button>
-
-          <div style={{ background: "#fff", borderRadius: 14, padding: "14px 16px" }}>
-            <div style={{ fontSize: 12, color: "#8E8E93", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>惹かれた要素</div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {TAGS.map(tag => (
-                <button key={tag} onClick={() => toggleTag(tag)} style={{ padding: "6px 14px", borderRadius: 20, fontSize: 13, fontWeight: 500, background: formEntry.tags.includes(tag) ? "#007AFF" : "#F2F2F7", color: formEntry.tags.includes(tag) ? "#fff" : "#3C3C43", border: "none", cursor: "pointer", fontFamily: "inherit" }}>{tag}</button>
-              ))}
-            </div>
-          </div>
-          <div style={{ background: "#fff", borderRadius: 14, overflow: "hidden" }}>
-            {QUESTIONS.map((q, i) => (
-              <div key={q.id} style={{ borderBottom: "0.5px solid #E5E5EA", padding: "14px 16px" }}>
-                <div style={{ fontSize: 12, color: "#8E8E93", fontWeight: 600, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>{String(i + 1).padStart(2, "0")} · {q.label}</div>
-                <textarea value={formEntry.answers[q.id]} onChange={e => setFormEntry(p => ({ ...p, answers: { ...p.answers, [q.id]: e.target.value } }))} rows={2} placeholder={q.placeholder} style={{ width: "100%", border: "none", fontSize: 15, color: "#000", background: "transparent", lineHeight: 1.5, fontFamily: "inherit", resize: "none", outline: "none" }} />
-              </div>
-            ))}
-            <div style={{ padding: "14px 16px" }}>
-              <div style={{ fontSize: 12, color: "#8E8E93", fontWeight: 600, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>その他 · メモ</div>
-              <textarea value={formEntry.memo || ""} onChange={e => setFormEntry(p => ({ ...p, memo: e.target.value }))} rows={3} placeholder="上記以外で気になったこと" style={{ width: "100%", border: "none", fontSize: 15, color: "#000", background: "transparent", lineHeight: 1.5, fontFamily: "inherit", resize: "none", outline: "none" }} />
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  const FormSheet = () => <FormSheetComponent {...formSheetProps} />;
 
   // 共同プロジェクトモード
   if (projectId) {
