@@ -261,15 +261,16 @@ ${jsonInstruction}` }];
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            contents: [{ parts }],
-            generationConfig: { responseMimeType: "application/json" }
+            contents: [{ parts }]
           })
         }
       );
       const data = await response.json();
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-      const clean = text.replace(/```json|```/g, "").trim();
-      const parsed = JSON.parse(clean);
+      if (!text) throw new Error("empty response");
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error("no json found");
+      const parsed = JSON.parse(jsonMatch[0]);
       setFormEntry(p => ({
         ...p,
         answers: {
