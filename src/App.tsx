@@ -212,19 +212,47 @@ export default function App() {
   const generateWithAI = async () => {
     const titleEl = document.querySelector('input[placeholder="作品名"]');
     const sourceEl = document.querySelector('input[placeholder="どこで見た？（re:designer, Behance...）"]');
-    const titleVal = titleEl?.value || formEntry.title || formEntry.url;
-    const sourceVal = sourceEl?.value || formEntry.source;
-    if (!titleVal) return;
+    const titleVal = titleEl?.value || formEntry.title || formEntry.url || "";
+    const sourceVal = sourceEl?.value || formEntry.source || "";
     setGeneratingAI(true);
     try {
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      const prompt = `デザイン学生がデザイン作品を解剖しています。以下の作品について4つの問いに対する短い仮説を日本語で生成してください。
+      const jsonInstruction = `必ずJSON形式のみで返してください（説明文や\`\`\`は不要）: {"q1":"どこに惹かれたかの仮説（1-2文）","q2":"作者の視点・意図の仮説（1-2文）","q3":"このデザインが解いている課題・テーマの仮説（1-2文）","q4":"自分の作品に持ち込めそうなこと（1-2文）"}`;
 
-作品: ${titleVal}
+      let parts = [];
+
+      // 画像がある場合はVision APIで解析
+      if (formEntry.image && formEntry.image !== "pdf" && formEntry.image.startsWith("data:image")) {
+        const base64 = formEntry.image.split(",")[1];
+        const mimeType = formEntry.image.split(";")[0].split(":")[1];
+        parts = [
+          { text: `デザイン学生がこのデザイン作品を解剖しています。${titleVal ? `作品名: ${titleVal}` : ""}${sourceVal ? ` 出典: ${sourceVal}` : ""}
+
+画像を見て4つの問いに対する鋭い仮説を日本語で生成してください。
+
+${jsonInstruction}` },
+          { inlineData: { mimeType, data: base64 } }
+        ];
+      } else if (formEntry.image && formEntry.image !== "pdf" && formEntry.image.startsWith("http")) {
+        // URL画像の場合
+        parts = [
+          { text: `デザイン学生がこのデザイン作品を解剖しています。${titleVal ? `作品名: ${titleVal}` : ""}${sourceVal ? ` 出典: ${sourceVal}` : ""}
+
+4つの問いに対する仮説を日本語で生成してください。
+
+${jsonInstruction}` },
+          { fileData: { mimeType: "image/jpeg", fileUri: formEntry.image } }
+        ];
+      } else {
+        // テキストのみ
+        parts = [{ text: `デザイン学生がデザイン作品を解剖しています。
+作品: ${titleVal || "不明"}
 ${sourceVal ? `出典: ${sourceVal}` : ""}
 
-必ずJSON形式のみで返してください（説明文や\`\`\`は不要）:
-{"q1":"どこに惹かれたかの仮説（1-2文）","q2":"作者の視点・意図の仮説（1-2文）","q3":"このデザインが解いている課題・テーマの仮説（1-2文）","q4":"自分の作品に持ち込めそうなこと（1-2文）"}`;
+4つの問いに対する仮説を日本語で生成してください。
+
+${jsonInstruction}` }];
+      }
 
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
@@ -232,7 +260,7 @@ ${sourceVal ? `出典: ${sourceVal}` : ""}
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
+            contents: [{ parts }],
             generationConfig: { responseMimeType: "application/json" }
           })
         }
