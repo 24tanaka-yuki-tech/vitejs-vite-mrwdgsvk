@@ -670,9 +670,13 @@ export default function App() {
       {imagePreview && selected?.image && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.95)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300 }}>
           {selected.pdfData ? (
-            <iframe src={selected.pdfData} style={{ width: "90vw", height: "90vh", border: "none" }} />
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 60, marginBottom: 20 }}>📄</div>
+              <div style={{ color: "#fff", fontSize: 16, marginBottom: 24 }}>{selected.title}</div>
+              <a href={selected.pdfData} download={`${selected.title || "document"}.pdf`} style={{ background: "#007AFF", color: "#fff", padding: "14px 28px", borderRadius: 12, textDecoration: "none", fontSize: 16, fontWeight: 600 }}>PDFをダウンロード</a>
+            </div>
           ) : (
-            <img src={selected.image} alt="" onClick={() => setImagePreview(false)} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", cursor: "zoom-out" }} />
+            <img src={selected.image} alt="" onClick={() => setImagePreview(false)} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", cursor: "zoom-out" }} referrerPolicy="no-referrer" />
           )}
           <button onClick={() => setImagePreview(false)} style={{ position: "absolute", top: 20, right: 20, background: "rgba(255,255,255,0.15)", color: "#fff", border: "none", fontSize: 20, width: 40, height: 40, borderRadius: 99, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
         </div>
