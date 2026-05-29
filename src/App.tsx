@@ -232,7 +232,7 @@ export default function App() {
 画像を見て4つの問いに対する鋭い仮説を日本語で生成してください。
 
 ${jsonInstruction}` },
-          { inlineData: { mimeType, data: base64 } }
+          { inline_data: { mime_type: mimeType, data: base64 } }
         ];
       } else if (formEntry.image && formEntry.image !== "pdf" && formEntry.image.startsWith("http")) {
         // URL画像の場合
