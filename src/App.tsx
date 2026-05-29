@@ -11,11 +11,11 @@ const QUESTIONS = [
   { id: "q3", label: "このデザインが解いている課題・テーマの仮説", placeholder: "どんな問いや目的があって作られたんだろう" },
   { id: "q4", label: "自分の作品に持ち込めること", placeholder: "具体的に学べること" },
 ];
-const EMPTY_ENTRY = { title: "", source: "", image: null, pdfData: null, color: "#C8C8C8", tags: [], answers: { q1: "", q2: "", q3: "", q4: "" }, memo: "" };
+const EMPTY_ENTRY = { title: "", source: "", url: "", image: null, pdfData: null, color: "#C8C8C8", tags: [], answers: { q1: "", q2: "", q3: "", q4: "" }, memo: "" };
 const DEMO_ENTRIES = [
-  { id: 1, title: "MUJI 2024 Annual Report", source: "Behance", image: "https://images.unsplash.com/photo-1600132806370-bf17e65e942f?w=600&q=80", pdfData: null, color: "#D4C9B4", tags: ["余白", "タイポグラフィ", "グリッド"], date: "2024.11.03", memo: "", answers: { q1: "余白の使い方が異常に贅沢。テキストが呼吸している感じ", q2: "情報を「削る」ことに確信を持っている", q3: "自分なら不安で情報を詰めすぎてた", q4: "1ページに要素を3つまでに絞る練習をする" } },
-  { id: 2, title: "同期のポートフォリオ", source: "re:designer", image: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&q=80", pdfData: null, color: "#8B9E8F", tags: ["世界観", "配色", "レイアウト"], date: "2024.11.12", memo: "", answers: { q1: "全ページに一貫した「暗さ」がある", q2: "好きなものが明確で、それ以外を全部捨ててる", q3: "自分は万人受けを意識して丸くなってた", q4: "自分の「嫌いなもの」リストを作ってみる" } },
-  { id: 3, title: "Nike × Wieden+Kennedy", source: "Pinterest", image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&q=80", pdfData: null, color: "#2D2D2D", tags: ["タイポグラフィ", "構成", "世界観"], date: "2024.11.18", memo: "", answers: { q1: "文字が主役になっている", q2: "タイポグラフィを「イラスト」として扱っている", q3: "文字を読ませようとしてた", q4: "テキストオンリーのビジュアル制作を週1回やる" } },
+  { id: 1, title: "MUJI 2024 Annual Report", source: "Behance", url: "", image: "https://images.unsplash.com/photo-1600132806370-bf17e65e942f?w=600&q=80", pdfData: null, color: "#D4C9B4", tags: ["余白", "タイポグラフィ", "グリッド"], date: "2024.11.03", memo: "", answers: { q1: "余白の使い方が異常に贅沢。テキストが呼吸している感じ", q2: "情報を「削る」ことに確信を持っている", q3: "自分なら不安で情報を詰めすぎてた", q4: "1ページに要素を3つまでに絞る練習をする" } },
+  { id: 2, title: "同期のポートフォリオ", source: "re:designer", url: "", image: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&q=80", pdfData: null, color: "#8B9E8F", tags: ["世界観", "配色", "レイアウト"], date: "2024.11.12", memo: "", answers: { q1: "全ページに一貫した「暗さ」がある", q2: "好きなものが明確で、それ以外を全部捨ててる", q3: "自分は万人受けを意識して丸くなってた", q4: "自分の「嫌いなもの」リストを作ってみる" } },
+  { id: 3, title: "Nike × Wieden+Kennedy", source: "Pinterest", url: "", image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&q=80", pdfData: null, color: "#2D2D2D", tags: ["タイポグラフィ", "構成", "世界観"], date: "2024.11.18", memo: "", answers: { q1: "文字が主役になっている", q2: "タイポグラフィを「イラスト」として扱っている", q3: "文字を読ませようとしてた", q4: "テキストオンリーのビジュアル制作を週1回やる" } },
 ];
 
 export default function App() {
@@ -106,14 +106,25 @@ export default function App() {
     if (!urlInput) return;
     setFetchingUrl(true);
     try {
-      const res = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(urlInput)}`);
+      const res = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(urlInput)}&screenshot=true&meta=false&embed=screenshot.url`);
       const data = await res.json();
       const imageUrl = data?.data?.screenshot?.url || data?.data?.image?.url;
       const title = data?.data?.title || "";
-      if (imageUrl) {
-        setFormEntry(p => ({ ...p, image: imageUrl, pdfData: null, title: p.title || title, source: p.source || new URL(urlInput).hostname.replace("www.", "") }));
-      }
-    } catch {}
+      const hostname = new URL(urlInput).hostname.replace("www.", "");
+      setFormEntry(p => ({
+        ...p,
+        url: urlInput,
+        title: p.title || title,
+        source: p.source || hostname,
+        ...(imageUrl ? { image: imageUrl, pdfData: null } : {})
+      }));
+    } catch {
+      // 取得失敗してもURLだけ保存
+      try {
+        const hostname = new URL(urlInput).hostname.replace("www.", "");
+        setFormEntry(p => ({ ...p, url: urlInput, source: p.source || hostname }));
+      } catch {}
+    }
     setFetchingUrl(false);
   };
 
@@ -504,7 +515,12 @@ export default function App() {
           </div>
           <div style={{ padding: "24px 20px" }}>
             <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.3px", marginBottom: 4 }}>{selected.title}</div>
-            <div style={{ fontSize: 15, color: "#8E8E93", marginBottom: 16 }}>{selected.source} · {selected.date}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+              <span style={{ fontSize: 15, color: "#8E8E93" }}>{selected.source} · {selected.date}</span>
+              {selected.url && (
+                <a href={selected.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: "#007AFF", background: "#F2F2F7", padding: "3px 10px", borderRadius: 20, textDecoration: "none", fontWeight: 500 }}>元のページ →</a>
+              )}
+            </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 32 }}>
               {selected.tags.map(tag => (
                 <span key={tag} style={{ fontSize: 13, background: "#E5E5EA", color: "#3C3C43", padding: "4px 12px", borderRadius: 20, fontWeight: 500 }}>{tag}</span>
