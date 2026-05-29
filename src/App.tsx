@@ -134,6 +134,55 @@ export default function App() {
     setFetchingUrl(false);
   };
 
+  const [generatingAI, setGeneratingAI] = useState(false);
+
+  const generateWithAI = async () => {
+    if (!formEntry.title && !formEntry.url) return;
+    setGeneratingAI(true);
+    try {
+      const target = formEntry.title || formEntry.url;
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1000,
+          messages: [{
+            role: "user",
+            content: `デザイン学生がデザイン作品を解剖しています。以下の作品について、4つの問いに対して短い仮説を日本語で生成してください。
+
+作品: ${target}
+${formEntry.source ? `出典: ${formEntry.source}` : ""}
+
+必ずJSON形式のみで返してください（他のテキストは一切不要）:
+{
+  "q1": "どこに惹かれたかの仮説（1-2文）",
+  "q2": "作者の視点・意図の仮説（1-2文）",
+  "q3": "このデザインが解いている課題・テーマの仮説（1-2文）",
+  "q4": "自分の作品に持ち込めそうなこと（1-2文）"
+}`
+          }]
+        })
+      });
+      const data = await response.json();
+      const text = data.content?.[0]?.text || "";
+      const clean = text.replace(/```json|```/g, "").trim();
+      const parsed = JSON.parse(clean);
+      setFormEntry(p => ({
+        ...p,
+        answers: {
+          q1: parsed.q1 || p.answers.q1,
+          q2: parsed.q2 || p.answers.q2,
+          q3: parsed.q3 || p.answers.q3,
+          q4: parsed.q4 || p.answers.q4,
+        }
+      }));
+    } catch (e) {
+      console.error(e);
+    }
+    setGeneratingAI(false);
+  };
+
   const handleImageUpload = (e) => {
     const file = e.target.files[0]; if (!file) return;
     const reader = new FileReader();
@@ -281,6 +330,16 @@ export default function App() {
             <input value={formEntry.title} onChange={e => setFormEntry(p => ({ ...p, title: e.target.value }))} placeholder="作品名" style={{ ...inputStyle, borderBottom: "0.5px solid #E5E5EA" }} />
             <input value={formEntry.source} onChange={e => setFormEntry(p => ({ ...p, source: e.target.value }))} placeholder="どこで見た？（re:designer, Behance...）" style={inputStyle} />
           </div>
+
+          {/* AI解剖ボタン */}
+          <button onClick={generateWithAI} disabled={generatingAI || (!formEntry.title && !formEntry.url)} style={{ width: "100%", background: generatingAI ? "#E5E5EA" : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", color: generatingAI ? "#8E8E93" : "#fff", border: "none", padding: "14px", borderRadius: 14, fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+            {generatingAI ? (
+              <>⏳ AIが解剖中...</>
+            ) : (
+              <>✨ AIで解剖の草案を生成</>
+            )}
+          </button>
+
           <div style={{ background: "#fff", borderRadius: 14, padding: "14px 16px" }}>
             <div style={{ fontSize: 12, color: "#8E8E93", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>惹かれた要素</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
