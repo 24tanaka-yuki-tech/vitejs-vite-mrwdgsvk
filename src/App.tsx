@@ -108,7 +108,7 @@ export default function App() {
     try {
       const res = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(urlInput)}`);
       const data = await res.json();
-      const imageUrl = data?.data?.image?.url || data?.data?.screenshot?.url;
+      const imageUrl = data?.data?.screenshot?.url || data?.data?.image?.url;
       const title = data?.data?.title || "";
       if (imageUrl) {
         setFormEntry(p => ({ ...p, image: imageUrl, pdfData: null, title: p.title || title, source: p.source || new URL(urlInput).hostname.replace("www.", "") }));
@@ -247,7 +247,7 @@ export default function App() {
                   <span style={{ color: "rgba(255,255,255,0.8)", fontSize: 12 }}>PDFを追加済み</span>
                 </div>
               ) : (
-                <img src={formEntry.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                <img src={formEntry.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} referrerPolicy="no-referrer" />
               )}
               <button onClick={() => setFormEntry(p => ({ ...p, image: null, pdfData: null }))} style={{ position: "absolute", top: 10, right: 10, background: "rgba(0,0,0,0.55)", color: "#fff", border: "none", fontSize: 12, padding: "5px 12px", borderRadius: 20, cursor: "pointer", fontWeight: 500 }}>削除</button>
             </div>
@@ -308,7 +308,7 @@ export default function App() {
         {/* 作品画像 */}
         {projectData.image && (
           <div style={{ height: 240, overflow: "hidden" }}>
-            <img src={projectData.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            <img src={projectData.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} referrerPolicy="no-referrer" />
           </div>
         )}
 
@@ -420,7 +420,7 @@ export default function App() {
       <div style={{ background: "rgba(242,242,247,0.92)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderBottom: "0.5px solid rgba(0,0,0,0.12)", position: "sticky", top: 0, zIndex: 100 }}>
         <div style={{ maxWidth: 960, margin: "0 auto", padding: "0 20px", height: 52, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           {view === "detail" ? (
-            <button className="sf-btn" onClick={() => setView("home")} style={{ background: "none", color: "#007AFF", fontSize: 17, display: "flex", alignItems: "center", gap: 4 }}>
+            <button onClick={() => setView("home")} style={{ background: "none", border: "none", color: "#007AFF", fontSize: 17, display: "flex", alignItems: "center", gap: 4, cursor: "pointer", fontFamily: "inherit" }}>
               <span style={{ fontSize: 20 }}>‹</span> Library
             </button>
           ) : (
@@ -469,7 +469,7 @@ export default function App() {
                     {entry.image === "pdf" ? (
                       <svg width="40" height="50" viewBox="0 0 48 60" fill="none"><rect width="48" height="60" rx="6" fill="white" fillOpacity="0.3"/><path d="M8 4h24l12 12v40H8V4z" fill="white" fillOpacity="0.9"/><path d="M32 4l12 12H32V4z" fill="white" fillOpacity="0.5"/><text x="24" y="42" textAnchor="middle" fill="#C44B2B" fontSize="10" fontWeight="bold">PDF</text></svg>
                     ) : entry.image ? (
-                      <img src={entry.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      <img src={entry.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} referrerPolicy="no-referrer" />
                     ) : null}
                   </div>
                   <button onClick={(e) => deleteEntry(entry.id, e)} style={{ position: "absolute", top: 10, right: 10, width: 28, height: 28, borderRadius: 99, background: "rgba(0,0,0,0.5)", border: "none", color: "#fff", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
@@ -498,7 +498,7 @@ export default function App() {
                 <svg width="64" height="80" viewBox="0 0 48 60" fill="none"><rect width="48" height="60" rx="6" fill="white" fillOpacity="0.2"/><path d="M8 4h24l12 12v40H8V4z" fill="white" fillOpacity="0.9"/><path d="M32 4l12 12H32V4z" fill="white" fillOpacity="0.5"/><text x="24" y="42" textAnchor="middle" fill="#C44B2B" fontSize="10" fontWeight="bold">PDF</text></svg>
               </div>
             ) : selected.image ? (
-              <img src={selected.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              <img src={selected.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} referrerPolicy="no-referrer" />
             ) : null}
             {selected.image && <div style={{ position: "absolute", bottom: 12, right: 12, background: "rgba(0,0,0,0.5)", color: "#fff", fontSize: 12, padding: "5px 12px", borderRadius: 20, fontWeight: 500 }}>{selected.image === "pdf" ? "PDFを開く" : "全画面で見る"}</div>}
           </div>
@@ -665,7 +665,7 @@ export default function App() {
                 <input type="file" accept="image/*" ref={projectFileRef} onChange={handleProjectImageUpload} style={{ display: "none" }} />
                 {newProjectImage ? (
                   <div style={{ position: "relative", height: 180, borderRadius: 14, overflow: "hidden" }}>
-                    <img src={newProjectImage} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    <img src={newProjectImage} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} referrerPolicy="no-referrer" />
                     <button onClick={() => setNewProjectImage(null)} style={{ position: "absolute", top: 10, right: 10, background: "rgba(0,0,0,0.55)", color: "#fff", border: "none", fontSize: 12, padding: "5px 12px", borderRadius: 20, cursor: "pointer" }}>削除</button>
                   </div>
                 ) : (
