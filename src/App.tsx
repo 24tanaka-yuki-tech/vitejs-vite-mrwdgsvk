@@ -420,7 +420,7 @@ export default function App() {
       <div style={{ background: "rgba(242,242,247,0.92)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderBottom: "0.5px solid rgba(0,0,0,0.12)", position: "sticky", top: 0, zIndex: 100 }}>
         <div style={{ maxWidth: 960, margin: "0 auto", padding: "0 20px", height: 52, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           {view === "detail" ? (
-            <button onClick={() => setView("home")} style={{ background: "none", border: "none", color: "#007AFF", fontSize: 17, display: "flex", alignItems: "center", gap: 4, cursor: "pointer", fontFamily: "inherit" }}>
+            <button onClick={() => setView("home")} style={{ background: "none", border: "none", color: "#007AFF", fontSize: 17, display: "flex", alignItems: "center", gap: 4, cursor: "pointer", fontFamily: "inherit", padding: "10px 10px 10px 0", margin: "-10px 0", WebkitTapHighlightColor: "transparent", touchAction: "manipulation" }}>
               <span style={{ fontSize: 20 }}>‹</span> Library
             </button>
           ) : (
