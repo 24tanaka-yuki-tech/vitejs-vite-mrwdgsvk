@@ -48,7 +48,7 @@ function FormSheetComponent({ closeSheet, saveEntry, sheetMode, fileInputRef, ha
             <input defaultValue={formEntry.title} onBlur={e => setFormEntry(p => ({ ...p, title: e.target.value }))} placeholder="作品名" style={{ ...inputStyle, borderBottom: "0.5px solid #E5E5EA" }} />
             <input defaultValue={formEntry.source} onBlur={e => setFormEntry(p => ({ ...p, source: e.target.value }))} placeholder="どこで見た？（re:designer, Behance...）" style={inputStyle} />
           </div>
-          <button onClick={generateWithAI} disabled={generatingAI || (!formEntry.title && !formEntry.url)} style={{ width: "100%", background: generatingAI ? "#E5E5EA" : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", color: generatingAI ? "#8E8E93" : "#fff", border: "none", padding: "14px", borderRadius: 14, fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+          <button onClick={generateWithAI} disabled={generatingAI} style={{ width: "100%", background: generatingAI ? "#E5E5EA" : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", color: generatingAI ? "#8E8E93" : "#fff", border: "none", padding: "14px", borderRadius: 14, fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
             {generatingAI ? <>⏳ AIが解剖中...</> : <>✨ AIで解剖してみる</>}
           </button>
           <div style={{ background: "#fff", borderRadius: 14, padding: "14px 16px" }}>
@@ -210,15 +210,18 @@ export default function App() {
   const [generatingAI, setGeneratingAI] = useState(false);
 
   const generateWithAI = async () => {
-    const target = formEntry.title || formEntry.url;
-    if (!target) return;
+    const titleEl = document.querySelector('input[placeholder="作品名"]');
+    const sourceEl = document.querySelector('input[placeholder="どこで見た？（re:designer, Behance...）"]');
+    const titleVal = titleEl?.value || formEntry.title || formEntry.url;
+    const sourceVal = sourceEl?.value || formEntry.source;
+    if (!titleVal) return;
     setGeneratingAI(true);
     try {
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
       const prompt = `デザイン学生がデザイン作品を解剖しています。以下の作品について4つの問いに対する短い仮説を日本語で生成してください。
 
-作品: ${target}
-${formEntry.source ? `出典: ${formEntry.source}` : ""}
+作品: ${titleVal}
+${sourceVal ? `出典: ${sourceVal}` : ""}
 
 必ずJSON形式のみで返してください（説明文や\`\`\`は不要）:
 {"q1":"どこに惹かれたかの仮説（1-2文）","q2":"作者の視点・意図の仮説（1-2文）","q3":"このデザインが解いている課題・テーマの仮説（1-2文）","q4":"自分の作品に持ち込めそうなこと（1-2文）"}`;
