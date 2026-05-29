@@ -99,6 +99,24 @@ export default function App() {
 
   const toggleTag = (tag) => setFormEntry(p => ({ ...p, tags: p.tags.includes(tag) ? p.tags.filter(t => t !== tag) : [...p.tags, tag] }));
 
+  const [urlInput, setUrlInput] = useState("");
+  const [fetchingUrl, setFetchingUrl] = useState(false);
+
+  const handleUrlFetch = async () => {
+    if (!urlInput) return;
+    setFetchingUrl(true);
+    try {
+      const res = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(urlInput)}`);
+      const data = await res.json();
+      const imageUrl = data?.data?.image?.url || data?.data?.screenshot?.url;
+      const title = data?.data?.title || "";
+      if (imageUrl) {
+        setFormEntry(p => ({ ...p, image: imageUrl, pdfData: null, title: p.title || title, source: p.source || new URL(urlInput).hostname.replace("www.", "") }));
+      }
+    } catch {}
+    setFetchingUrl(false);
+  };
+
   const handleImageUpload = (e) => {
     const file = e.target.files[0]; if (!file) return;
     const reader = new FileReader();
@@ -214,6 +232,12 @@ export default function App() {
           <button onClick={saveEntry} style={{ background: "none", border: "none", color: "#007AFF", fontSize: 17, fontWeight: 600, cursor: "pointer" }}>保存</button>
         </div>
         <div style={{ padding: "0 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+          {/* URL入力 */}
+          <div style={{ background: "#fff", borderRadius: 14, display: "flex", overflow: "hidden" }}>
+            <input value={urlInput} onChange={e => setUrlInput(e.target.value)} onKeyDown={e => e.key === "Enter" && handleUrlFetch()} placeholder="URLを貼り付けて自動取得" style={{ flex: 1, padding: "14px 16px", fontSize: 14, border: "none", background: "transparent", fontFamily: "inherit", outline: "none" }} />
+            <button onClick={handleUrlFetch} disabled={fetchingUrl} style={{ background: fetchingUrl ? "#E5E5EA" : "#007AFF", color: fetchingUrl ? "#8E8E93" : "#fff", border: "none", padding: "0 16px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>{fetchingUrl ? "取得中..." : "取得"}</button>
+          </div>
+
           <input type="file" accept="image/*,.pdf" ref={fileInputRef} onChange={handleImageUpload} style={{ display: "none" }} />
           {formEntry.image ? (
             <div style={{ position: "relative", height: 180, borderRadius: 14, overflow: "hidden", background: formEntry.image === "pdf" ? "#2D2D2D" : "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -660,7 +684,7 @@ export default function App() {
         </div>
       )}
 
-{sheetMode && FormSheet()}
+      {sheetMode && <FormSheet />}
 
       {/* プロフィール設定 */}
       {(!userProfile || settingProfile) && (
