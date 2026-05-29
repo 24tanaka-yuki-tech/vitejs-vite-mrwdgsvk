@@ -210,35 +210,32 @@ export default function App() {
   const [generatingAI, setGeneratingAI] = useState(false);
 
   const generateWithAI = async () => {
-    if (!formEntry.title && !formEntry.url) return;
+    const target = formEntry.title || formEntry.url;
+    if (!target) return;
     setGeneratingAI(true);
     try {
-      const target = formEntry.title || formEntry.url;
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          messages: [{
-            role: "user",
-            content: `デザイン学生がデザイン作品を解剖しています。以下の作品について、4つの問いに対して短い仮説を日本語で生成してください。
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      const prompt = `デザイン学生がデザイン作品を解剖しています。以下の作品について4つの問いに対する短い仮説を日本語で生成してください。
 
 作品: ${target}
 ${formEntry.source ? `出典: ${formEntry.source}` : ""}
 
-必ずJSON形式のみで返してください（他のテキストは一切不要）:
-{
-  "q1": "どこに惹かれたかの仮説（1-2文）",
-  "q2": "作者の視点・意図の仮説（1-2文）",
-  "q3": "このデザインが解いている課題・テーマの仮説（1-2文）",
-  "q4": "自分の作品に持ち込めそうなこと（1-2文）"
-}`
-          }]
-        })
-      });
+必ずJSON形式のみで返してください（説明文や\`\`\`は不要）:
+{"q1":"どこに惹かれたかの仮説（1-2文）","q2":"作者の視点・意図の仮説（1-2文）","q3":"このデザインが解いている課題・テーマの仮説（1-2文）","q4":"自分の作品に持ち込めそうなこと（1-2文）"}`;
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { responseMimeType: "application/json" }
+          })
+        }
+      );
       const data = await response.json();
-      const text = data.content?.[0]?.text || "";
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
       const clean = text.replace(/```json|```/g, "").trim();
       const parsed = JSON.parse(clean);
       setFormEntry(p => ({
