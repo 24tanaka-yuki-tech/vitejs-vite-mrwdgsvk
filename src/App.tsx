@@ -6,7 +6,7 @@ const ICONS = ["🎨","🖌️","✏️","📐","💡","🔍","🌸","🌙","⭐
 
 const inputStyle = { display: "block", width: "100%", padding: "14px 16px", fontSize: 15, border: "none", background: "transparent", fontFamily: "inherit", outline: "none" };
 
-function FormSheetComponent({ closeSheet, saveEntry, sheetMode, fileInputRef, handleImageUpload, urlInput, setUrlInput, fetchingUrl, handleUrlFetch, formEntry, setFormEntry, generatingAI, generateWithAI, aiVersion, TAGS, QUESTIONS }) {
+function FormSheetComponent({ closeSheet, saveEntry, sheetMode, fileInputRef, handleImageUpload, urlInput, setUrlInput, fetchingUrl, handleUrlFetch, formEntry, setFormEntry, generatingAI, generateWithAI, aiVersion, aiError, setAiError, TAGS, QUESTIONS }) {
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 200 }}>
       <div style={{ background: "#F2F2F7", width: "100%", maxWidth: 640, maxHeight: "90vh", overflowY: "auto", borderRadius: "20px 20px 0 0", padding: "0 0 32px" }}>
@@ -56,6 +56,7 @@ function FormSheetComponent({ closeSheet, saveEntry, sheetMode, fileInputRef, ha
             )}
           </button>
           <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+          {aiError && <div style={{ background: "#FFF3CD", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#856404" }}>{aiError}</div>}
           <div style={{ background: "#fff", borderRadius: 14, padding: "14px 16px" }}>
             <div style={{ fontSize: 12, color: "#8E8E93", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>惹かれた要素</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -214,6 +215,7 @@ export default function App() {
 
   const [generatingAI, setGeneratingAI] = useState(false);
   const [aiVersion, setAiVersion] = useState(0);
+  const [aiError, setAiError] = useState("");
 
   const generateWithAI = async () => {
     const titleEl = document.querySelector('input[placeholder="作品名"]');
@@ -288,6 +290,11 @@ ${jsonInstruction}` }];
       setAiVersion(v => v + 1);
     } catch (e) {
       console.error(e);
+      if (e.message === "empty response") {
+        setAiError("レート制限中です。1〜2分待ってから試してください。");
+      } else {
+        setAiError("エラーが発生しました。もう一度試してください。");
+      }
     }
     setGeneratingAI(false);
   };
@@ -396,7 +403,7 @@ ${jsonInstruction}` }];
 
   // FormSheetはファイル上部で外部定義済み
 
-  const formSheetProps = { closeSheet, saveEntry, sheetMode, fileInputRef, handleImageUpload, urlInput, setUrlInput, fetchingUrl, handleUrlFetch, formEntry, setFormEntry, generatingAI, generateWithAI, aiVersion, TAGS, QUESTIONS };
+  const formSheetProps = { closeSheet, saveEntry, sheetMode, fileInputRef, handleImageUpload, urlInput, setUrlInput, fetchingUrl, handleUrlFetch, formEntry, setFormEntry, generatingAI, generateWithAI, aiVersion, aiError, setAiError, TAGS, QUESTIONS };
 
   const _unused = { display: "block", width: "100%", padding: "14px 16px", fontSize: 15, border: "none", background: "transparent", fontFamily: "inherit", outline: "none" };
 
