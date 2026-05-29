@@ -325,8 +325,17 @@ export default function App() {
 
         {/* 作品画像 */}
         {projectData.image && (
-          <div style={{ height: 240, overflow: "hidden" }}>
+          <div style={{ height: 240, overflow: "hidden", position: "relative", cursor: "pointer" }} onClick={() => setImagePreview(true)}>
             <img src={projectData.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} referrerPolicy="no-referrer" />
+            <div style={{ position: "absolute", bottom: 12, right: 12, background: "rgba(0,0,0,0.5)", color: "#fff", fontSize: 12, padding: "5px 12px", borderRadius: 20, fontWeight: 500 }}>全画面で見る</div>
+          </div>
+        )}
+
+        {/* 全画面プレビュー */}
+        {imagePreview && (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.95)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300 }} onClick={() => setImagePreview(false)}>
+            <img src={projectData.image} alt="" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} referrerPolicy="no-referrer" />
+            <button onClick={() => setImagePreview(false)} style={{ position: "absolute", top: 20, right: 20, background: "rgba(255,255,255,0.15)", color: "#fff", border: "none", fontSize: 20, width: 40, height: 40, borderRadius: 99, cursor: "pointer" }}>×</button>
           </div>
         )}
 
