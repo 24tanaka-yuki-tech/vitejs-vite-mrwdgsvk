@@ -174,6 +174,7 @@ export default function App() {
       title: entry.title,
       image: entry.image === "pdf" ? null : entry.image,
       source: entry.source,
+      url: entry.url || "",
       ownerAnswers: entry.answers,
       ownerTags: entry.tags,
       ownerMemo: entry.memo || "",
@@ -330,6 +331,13 @@ export default function App() {
         )}
 
         <div style={{ maxWidth: 720, margin: "0 auto", padding: "24px 20px" }}>
+          {/* URLリンク */}
+          {projectData.url && (
+            <div style={{ marginBottom: 16 }}>
+              <a href={projectData.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: "#007AFF", background: "#fff", padding: "8px 16px", borderRadius: 20, textDecoration: "none", fontWeight: 500, display: "inline-block" }}>元のページを見る →</a>
+            </div>
+          )}
+
           {!userNameSet ? (
             // 名前入力
             <div style={{ background: "#fff", borderRadius: 16, padding: "28px 24px", textAlign: "center" }}>
