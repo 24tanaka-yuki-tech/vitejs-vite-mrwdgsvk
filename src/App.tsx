@@ -640,10 +640,7 @@ ${jsonInstruction}` }];
           </div>
         )}
 
-        {/* Apply */}
-      {view === "apply" && <ApplyPage entries={entries} />}
-
-      {/* 全画面プレビュー */}
+        {/* 全画面プレビュー */}
         {imagePreview && (
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.95)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300 }} onClick={() => setImagePreview(false)}>
             <img src={projectData.image} alt="" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} referrerPolicy="no-referrer" />
