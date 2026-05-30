@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { db } from "./firebase";
-import { collection, addDoc, onSnapshot, doc, getDoc, serverTimestamp } from "firebase/firestore";
+import { db, auth } from "./firebase";
+import { collection, addDoc, onSnapshot, doc, getDoc, setDoc, deleteDoc, serverTimestamp, query, orderBy } from "firebase/firestore";
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
 
 const ICONS = ["🎨","🖌️","✏️","📐","💡","🔍","🌸","🌙","⭐","🔥","💫","🌊","🦋","🌿","🎯","🦄","🐼","🐸","🦊","🐱"];
 
@@ -248,10 +249,23 @@ export default function App() {
 
   // 個人モードのstate
   const [view, setView] = useState("home");
-  const [entries, setEntries] = useState(() => {
-    try { const s = localStorage.getItem("naosu-entries"); return s ? JSON.parse(s) : DEMO_ENTRIES; } catch { return DEMO_ENTRIES; }
-  });
-  useEffect(() => { try { localStorage.setItem("naosu-entries", JSON.stringify(entries)); } catch {} }, [entries]);
+  const [entries, setEntries] = useState<any[]>([]);
+  const [entriesLoading, setEntriesLoading] = useState(true);
+
+  // Firestoreからentries読み込み
+  useEffect(() => {
+    if (!currentUser) { setEntries([]); setEntriesLoading(false); return; }
+    const q = query(collection(db, "users", currentUser.uid, "entries"), orderBy("createdAt", "desc"));
+    const unsub = onSnapshot(q, (snap) => {
+      if (snap.empty) {
+        setEntries([]);
+      } else {
+        setEntries(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      }
+      setEntriesLoading(false);
+    });
+    return () => unsub();
+  }, [currentUser]);
   const [selected, setSelected] = useState(null);
   const [sheetMode, setSheetMode] = useState(null);
   const [formEntry, setFormEntry] = useState(EMPTY_ENTRY);
@@ -482,18 +496,28 @@ ${jsonInstruction}` }];
   const openEdit = (entry) => { setFormEntry({ ...entry }); setSheetMode("edit"); };
   const closeSheet = () => { setSheetMode(null); setFormEntry(EMPTY_ENTRY); };
 
-  const saveEntry = () => {
-    if (!formEntry.title) return;
+  const saveEntry = async () => {
+    if (!formEntry.title || !currentUser) return;
+    const date = new Date().toLocaleDateString("ja-JP").replace(/\//g, ".");
     if (sheetMode === "create") {
-      setEntries(p => [...p, { ...formEntry, id: Date.now(), date: new Date().toLocaleDateString("ja-JP").replace(/\//g, ".") }]);
+      const docRef = await addDoc(collection(db, "users", currentUser.uid, "entries"), {
+        ...formEntry, date, createdAt: serverTimestamp()
+      });
+      setSelected({ ...formEntry, id: docRef.id, date });
     } else {
-      setEntries(p => p.map(e => e.id === formEntry.id ? { ...formEntry } : e));
+      await setDoc(doc(db, "users", currentUser.uid, "entries", formEntry.id), {
+        ...formEntry, updatedAt: serverTimestamp()
+      });
       setSelected({ ...formEntry });
     }
     closeSheet();
   };
 
-  const deleteEntry = (id, e) => { e.stopPropagation(); setEntries(p => p.filter(en => en.id !== id)); };
+  const deleteEntry = async (id: string, e: any) => {
+    e.stopPropagation();
+    if (!currentUser) return;
+    await deleteDoc(doc(db, "users", currentUser.uid, "entries", id));
+  };
 
   const shareProject = async (entry) => {
     const docRef = await addDoc(collection(db, "projects"), {
@@ -513,7 +537,29 @@ ${jsonInstruction}` }];
     setProjectUrl(url);
     setCreatingProject(true);
   };
-  const openDetail = (entry) => { setSelected(entry); setView("detail"); };
+  const openDetail = (entry: any) => { setSelected(entry); setView("detail"); };
+
+  const handleAuth = async () => {
+    setAuthSubmitting(true); setAuthError("");
+    try {
+      if (authMode === "signup") {
+        await createUserWithEmailAndPassword(auth, authEmail, authPassword);
+      } else {
+        await signInWithEmailAndPassword(auth, authEmail, authPassword);
+      }
+    } catch (e: any) {
+      const msg: { [key: string]: string } = {
+        "auth/email-already-in-use": "このメールアドレスは既に使用されています",
+        "auth/invalid-email": "メールアドレスの形式が正しくありません",
+        "auth/weak-password": "パスワードは6文字以上にしてください",
+        "auth/user-not-found": "アカウントが見つかりません",
+        "auth/wrong-password": "パスワードが間違っています",
+        "auth/invalid-credential": "メールアドレスまたはパスワードが間違っています",
+      };
+      setAuthError(msg[e.code] || "エラーが発生しました");
+    }
+    setAuthSubmitting(false);
+  };
 
   // 共同プロジェクト作成
   const createProject = async () => {
@@ -540,25 +586,24 @@ ${jsonInstruction}` }];
       memo: formEntry.memo || "",
       createdAt: serverTimestamp(),
     });
-    // 自分のCollectionにも追加
-    const newEntry = {
-      id: Date.now(),
-      title: projectData.title,
-      source: projectData.source || "共有プロジェクト",
-      image: projectData.image || null,
-      pdfData: null,
-      color: "#8B9E8F",
-      tags: formEntry.tags,
-      answers: formEntry.answers,
-      memo: formEntry.memo || "",
-      date: new Date().toLocaleDateString("ja-JP").replace(/\//g, "."),
-      projectId: projectId,
-    };
-    try {
-      const existing = localStorage.getItem("naosu-entries");
-      const existingEntries = existing ? JSON.parse(existing) : [];
-      localStorage.setItem("naosu-entries", JSON.stringify([...existingEntries, newEntry]));
-    } catch {}
+    // 自分のCollectionにも追加（Firestoreに保存）
+    if (currentUser) {
+      const newEntry = {
+        title: projectData.title,
+        source: projectData.source || "共有プロジェクト",
+        image: projectData.image || null,
+        pdfData: null,
+        color: "#8B9E8F",
+        tags: formEntry.tags,
+        answers: formEntry.answers,
+        memo: formEntry.memo || "",
+        firstImpression: formEntry.firstImpression || "",
+        date: new Date().toLocaleDateString("ja-JP").replace(/\//g, "."),
+        projectId: projectId,
+        createdAt: serverTimestamp(),
+      };
+      await addDoc(collection(db, "users", currentUser.uid, "entries"), newEntry);
+    }
     setProjectSubmitted(true);
   };
 
@@ -712,6 +757,45 @@ ${jsonInstruction}` }];
     );
   }
 
+  // ローディング中
+  if (authLoading) {
+    return <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", fontFamily: "-apple-system, sans-serif", color: "#8E8E93", fontSize: 15 }}>読み込み中...</div>;
+  }
+
+  // 未ログイン時：ログイン/サインアップ画面
+  if (!currentUser) {
+    return (
+      <div style={{ fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif", background: "#F2F2F7", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+        <div style={{ background: "#fff", borderRadius: 20, padding: "40px 28px", width: "100%", maxWidth: 400 }}>
+          <div style={{ textAlign: "center", marginBottom: 32 }}>
+            <div style={{ fontSize: 40, marginBottom: 8 }}>🔬</div>
+            <div style={{ fontSize: 24, fontWeight: 700, marginBottom: 4 }}>なおす</div>
+            <div style={{ fontSize: 14, color: "#8E8E93" }}>嫉妬を、図鑑にする。</div>
+          </div>
+
+          <div style={{ display: "flex", background: "#F2F2F7", borderRadius: 10, padding: 3, marginBottom: 24 }}>
+            {(["login", "signup"] as const).map(mode => (
+              <button key={mode} onClick={() => { setAuthMode(mode); setAuthError(""); }} style={{ flex: 1, padding: "8px", borderRadius: 8, border: "none", background: authMode === mode ? "#fff" : "transparent", fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: "inherit", boxShadow: authMode === mode ? "0 1px 3px rgba(0,0,0,0.12)" : "none" }}>
+                {mode === "login" ? "ログイン" : "新規登録"}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 20 }}>
+            <input value={authEmail} onChange={e => setAuthEmail(e.target.value)} type="email" placeholder="メールアドレス" style={{ padding: "14px 16px", borderRadius: 12, border: "1px solid #E5E5EA", fontSize: 15, fontFamily: "inherit", outline: "none", background: "#F2F2F7" }} />
+            <input value={authPassword} onChange={e => setAuthPassword(e.target.value)} type="password" placeholder="パスワード（6文字以上）" onKeyDown={e => e.key === "Enter" && handleAuth()} style={{ padding: "14px 16px", borderRadius: 12, border: "1px solid #E5E5EA", fontSize: 15, fontFamily: "inherit", outline: "none", background: "#F2F2F7" }} />
+          </div>
+
+          {authError && <div style={{ background: "#FFF3CD", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#856404", marginBottom: 16 }}>{authError}</div>}
+
+          <button onClick={handleAuth} disabled={authSubmitting || !authEmail || !authPassword} style={{ width: "100%", background: "#007AFF", color: "#fff", border: "none", padding: "16px", borderRadius: 12, fontSize: 16, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", opacity: authSubmitting ? 0.7 : 1 }}>
+            {authSubmitting ? "処理中..." : authMode === "login" ? "ログイン" : "アカウントを作成"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // 個人モード
   return (
     <div style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif", background: "#F2F2F7", minHeight: "100vh", color: "#000" }}>
@@ -736,7 +820,10 @@ ${jsonInstruction}` }];
               <button className="sf-btn" onClick={() => openEdit(selected)} style={{ background: "none", color: "#007AFF", fontSize: 15 }}>編集</button>
             </div>
           ) : (
-            <button className="sf-btn" onClick={openCreate} style={{ background: "none", color: "#007AFF", fontSize: 28, lineHeight: 1, fontWeight: 300 }}>+</button>
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              <button className="sf-btn" onClick={openCreate} style={{ background: "none", color: "#007AFF", fontSize: 28, lineHeight: 1, fontWeight: 300 }}>+</button>
+              <button className="sf-btn" onClick={() => signOut(auth)} style={{ background: "none", color: "#8E8E93", fontSize: 13 }}>ログアウト</button>
+            </div>
           )}
         </div>
         {view !== "detail" && (
