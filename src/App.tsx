@@ -363,11 +363,7 @@ export default function App() {
         }
       } catch {}
       const pastDataStr = pastEntries.length > 0
-        ? `
-
-【この人の過去の解剖データ】
-${pastEntries.map(e => `・${e.title}：タグ[${e.tags.join(",")}] 持ち込もうとしたこと「${e.q4}」`).join("
-")}`
+        ? `\n\n【この人の過去の解剖データ】\n${pastEntries.map(e => `・${e.title}：タグ[${e.tags.join(",")}] 持ち込もうとしたこと「${e.q4}」`).join("\n")}`
         : "";
       const jsonInstruction = `回答は全て10〜20文字以内の短い一言にしてください。必ずJSON形式のみで返してください（説明文や\`\`\`は不要）: {"q1":"惹かれた点（一言）","q2":"作者の意図の仮説（一言）","q3":"解いている課題の仮説（一言）","q4":"過去の解剖データを参考に、この人がまだ取り込めていない・足りていない要素を具体的に一言で"}`;
 
