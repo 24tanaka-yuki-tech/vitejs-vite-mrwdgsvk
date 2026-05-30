@@ -48,6 +48,13 @@ function FormSheetComponent({ closeSheet, saveEntry, sheetMode, fileInputRef, ha
             <input defaultValue={formEntry.title} onBlur={e => setFormEntry(p => ({ ...p, title: e.target.value }))} placeholder="作品名" style={{ ...inputStyle, borderBottom: "0.5px solid #E5E5EA" }} />
             <input defaultValue={formEntry.source} onBlur={e => setFormEntry(p => ({ ...p, source: e.target.value }))} placeholder="どこで見た？（re:designer, Behance...）" style={inputStyle} />
           </div>
+          {/* 第一印象入力 */}
+          <div style={{ background: "#fff", borderRadius: 14, padding: "14px 16px" }}>
+            <div style={{ fontSize: 12, color: "#8E8E93", fontWeight: 600, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>💬 なぜ良いと思った？</div>
+            <textarea defaultValue={formEntry.firstImpression || ""} onBlur={e => setFormEntry(p => ({ ...p, firstImpression: e.target.value }))} rows={2} placeholder="なぜ良いと思った？一言で" style={{ width: "100%", border: "none", fontSize: 15, color: "#000", background: "transparent", lineHeight: 1.5, fontFamily: "inherit", resize: "none", outline: "none" }} />
+            <div style={{ fontSize: 11, color: "#C7C7CC", marginTop: 4 }}>これをもとにAIが解剖します</div>
+          </div>
+
           <button onClick={generateWithAI} disabled={generatingAI} style={{ width: "100%", background: generatingAI ? "#5856D6" : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", color: "#fff", border: "none", padding: "16px", borderRadius: 14, fontSize: 15, fontWeight: 600, cursor: generatingAI ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: generatingAI ? 0.8 : 1 }}>
             {generatingAI ? (
               <><span style={{ display: "inline-block", animation: "spin 1s linear infinite", fontSize: 18 }}>⏳</span> AI解剖中... しばらくお待ちください</>
@@ -90,7 +97,7 @@ const QUESTIONS = [
   { id: "q3", label: "このデザインが解いている課題・テーマの仮説", placeholder: "どんな問いや目的があって作られたんだろう" },
   { id: "q4", label: "自分の作品に持ち込めること", placeholder: "具体的に学べること" },
 ];
-const EMPTY_ENTRY = { title: "", source: "", url: "", image: null, pdfData: null, color: "#C8C8C8", tags: [], answers: { q1: "", q2: "", q3: "", q4: "" }, memo: "" };
+const EMPTY_ENTRY = { title: "", source: "", url: "", image: null, pdfData: null, color: "#C8C8C8", tags: [], answers: { q1: "", q2: "", q3: "", q4: "" }, memo: "", firstImpression: "" };
 const DEMO_ENTRIES = [
   { id: 1, title: "MUJI 2024 Annual Report", source: "Behance", url: "", image: "https://images.unsplash.com/photo-1600132806370-bf17e65e942f?w=600&q=80", pdfData: null, color: "#D4C9B4", tags: ["余白", "タイポグラフィ", "グリッド"], date: "2024.11.03", memo: "", answers: { q1: "余白の使い方が異常に贅沢。テキストが呼吸している感じ", q2: "情報を「削る」ことに確信を持っている", q3: "自分なら不安で情報を詰めすぎてた", q4: "1ページに要素を3つまでに絞る練習をする" } },
   { id: 2, title: "同期のポートフォリオ", source: "re:designer", url: "", image: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&q=80", pdfData: null, color: "#8B9E8F", tags: ["世界観", "配色", "レイアウト"], date: "2024.11.12", memo: "", answers: { q1: "全ページに一貫した「暗さ」がある", q2: "好きなものが明確で、それ以外を全部捨ててる", q3: "自分は万人受けを意識して丸くなってた", q4: "自分の「嫌いなもの」リストを作ってみる" } },
@@ -225,6 +232,8 @@ export default function App() {
     setGeneratingAI(true);
     try {
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      const firstImpressionEl = document.querySelector('textarea[placeholder="なぜ良いと思った？一言で"]');
+      const firstImpression = firstImpressionEl?.value || formEntry.firstImpression || "";
       const jsonInstruction = `必ずJSON形式のみで返してください（説明文や\`\`\`は不要）: {"q1":"どこに惹かれたかの仮説（1-2文）","q2":"作者の視点・意図の仮説（1-2文）","q3":"このデザインが解いている課題・テーマの仮説（1-2文）","q4":"自分の作品に持ち込めそうなこと（1-2文）"}`;
 
       let parts = [];
@@ -234,9 +243,11 @@ export default function App() {
         const base64 = formEntry.image.split(",")[1];
         const mimeType = formEntry.image.split(";")[0].split(":")[1];
         parts = [
-          { text: `デザイン学生がこのデザイン作品を解剖しています。${titleVal ? `作品名: ${titleVal}` : ""}${sourceVal ? ` 出典: ${sourceVal}` : ""}
+          { text: `デザイン学生がこのデザイン作品を解剖しています。${titleVal ? `作品名: ${titleVal}` : ""}${sourceVal ? ` 出典: ${sourceVal}` : ""}${firstImpression ? `
 
-画像を見て4つの問いに対する鋭い仮説を日本語で生成してください。
+学生の第一印象: 「${firstImpression}」` : ""}
+
+画像を見て、学生の第一印象を踏まえた上で4つの問いに対する鋭い仮説を日本語で生成してください。
 
 ${jsonInstruction}` },
           { inline_data: { mime_type: mimeType, data: base64 } }
@@ -255,9 +266,10 @@ ${jsonInstruction}` },
         // テキストのみ
         parts = [{ text: `デザイン学生がデザイン作品を解剖しています。
 作品: ${titleVal || "不明"}
-${sourceVal ? `出典: ${sourceVal}` : ""}
+${sourceVal ? `出典: ${sourceVal}` : ""}${firstImpression ? `
+学生の第一印象: 「${firstImpression}」` : ""}
 
-4つの問いに対する仮説を日本語で生成してください。
+第一印象を踏まえて4つの問いに対する仮説を日本語で生成してください。
 
 ${jsonInstruction}` }];
       }
