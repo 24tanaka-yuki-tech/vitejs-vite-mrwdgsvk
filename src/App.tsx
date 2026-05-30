@@ -28,22 +28,21 @@ function ApplyPage({ entries }: { entries: any[] }) {
         firstImpression: e.firstImpression || ""
       }));
 
-      const prompt = `デザイン学生の解剖図鑑データから、新しい課題に使える要素を提案してください。
+      const prompt = `あなたはデザインメンターです。デザイン学生の解剖図鑑データをもとに、新しい課題に向けた具体的なデザインコンセプトを提案してください。
 
 課題テーマ：「${theme}」
 
-【解剖図鑑データ】
-${pastData.map(e => `・${e.title}
-  タグ：${e.tags.join("、")}
-  惹かれた点：${e.q1}
-  作者の意図：${e.q2}
-  第一印象：${e.firstImpression}`).join("\n")}
+【この学生の解剖図鑑データ】
+${pastData.map(e => `・${e.title}｜タグ:${e.tags.join(",")}｜惹かれた点:${e.q1}｜第一印象:${e.firstImpression}`).join("\n")}
 
-この課題テーマに対して、解剖データから使えそうな要素を3つ提案してください。
-各提案には「どの作品の」「どの要素が」「なぜ使えるか」を含めてください。
+以下の3ステップで提案してください：
+
+1. 図鑑から使えそうな要素を3〜4個抽出して、それぞれをこのテーマに置き換えるとどうなるかのアイデアを提案
+2. それらを組み合わせた最終的なデザインコンセプト（タイトル＋説明）を1つ提案
+3. この学生がまだ取り込めていない視点を一言で
 
 必ずJSON形式のみで返してください：
-{"proposals":[{"work":"作品名","element":"使える要素","reason":"なぜ使えるか（一言）"},{"work":"作品名","element":"使える要素","reason":"なぜ使えるか（一言）"},{"work":"作品名","element":"使える要素","reason":"なぜ使えるか（一言）"}],"missing":"この人の解剖データから見えてくる、まだ取り込めていない視点（一言）"}`;
+{"ideas":[{"source":"参照した作品名","element":"抽出した要素","application":"このテーマに置き換えるとこうなる（具体的に一言）"},{"source":"参照した作品名","element":"抽出した要素","application":"このテーマに置き換えるとこうなる（具体的に一言）"},{"source":"参照した作品名","element":"抽出した要素","application":"このテーマに置き換えるとこうなる（具体的に一言）"}],"concept":{"title":"最終コンセプトのタイトル","description":"アイデアを組み合わせた最終提案（2〜3文）"},"missing":"まだ取り込めていない視点（一言）"}`;
 
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
@@ -91,19 +90,28 @@ ${pastData.map(e => `・${e.title}
       {error && <div style={{ background: "#FFF3CD", borderRadius: 12, padding: "12px 16px", fontSize: 13, color: "#856404", marginBottom: 16 }}>{error}</div>}
 
       {result && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ fontSize: 13, color: "#8E8E93", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>使えそうな要素</div>
-          {result.proposals?.map((p: any, i: number) => (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div style={{ fontSize: 13, color: "#8E8E93", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>図鑑から抽出したアイデア</div>
+          {result.ideas?.map((idea: any, i: number) => (
             <div key={i} style={{ background: "#fff", borderRadius: 14, padding: "16px 18px" }}>
-              <div style={{ fontSize: 12, color: "#007AFF", fontWeight: 600, marginBottom: 6 }}>{p.work}</div>
-              <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>{p.element}</div>
-              <div style={{ fontSize: 14, color: "#8E8E93" }}>{p.reason}</div>
+              <div style={{ fontSize: 11, color: "#007AFF", fontWeight: 600, marginBottom: 6 }}>📌 {idea.source} より</div>
+              <div style={{ fontSize: 13, color: "#8E8E93", marginBottom: 8 }}>要素：{idea.element}</div>
+              <div style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.5 }}>→ {idea.application}</div>
             </div>
           ))}
+
+          {result.concept && (
+            <div style={{ background: "linear-gradient(135deg, #667eea22 0%, #764ba222 100%)", borderRadius: 14, padding: "20px 18px", border: "1.5px solid #667eea44" }}>
+              <div style={{ fontSize: 12, color: "#667eea", fontWeight: 600, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>✨ 最終コンセプト</div>
+              <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 10 }}>{result.concept.title}</div>
+              <div style={{ fontSize: 14, lineHeight: 1.7, color: "#3C3C43" }}>{result.concept.description}</div>
+            </div>
+          )}
+
           {result.missing && (
-            <div style={{ background: "#F2F2F7", borderRadius: 14, padding: "16px 18px", borderLeft: "3px solid #FF9500" }}>
+            <div style={{ background: "#FFF9F0", borderRadius: 14, padding: "16px 18px", borderLeft: "3px solid #FF9500" }}>
               <div style={{ fontSize: 12, color: "#FF9500", fontWeight: 600, marginBottom: 6 }}>まだ取り込めていない視点</div>
-              <div style={{ fontSize: 15 }}>{result.missing}</div>
+              <div style={{ fontSize: 14 }}>{result.missing}</div>
             </div>
           )}
         </div>
