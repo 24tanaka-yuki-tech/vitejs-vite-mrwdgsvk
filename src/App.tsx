@@ -4,6 +4,122 @@ import { collection, addDoc, onSnapshot, doc, getDoc, serverTimestamp } from "fi
 
 const ICONS = ["🎨","🖌️","✏️","📐","💡","🔍","🌸","🌙","⭐","🔥","💫","🌊","🦋","🌿","🎯","🦄","🐼","🐸","🦊","🐱"];
 
+
+function ApplyPage({ entries }: { entries: any[] }) {
+  const [theme, setTheme] = React.useState("");
+  const [loading, setLoading] = React.useState(false);
+  const [result, setResult] = React.useState<any>(null);
+  const [error, setError] = React.useState("");
+
+  const generate = async () => {
+    if (!theme) return;
+    setLoading(true);
+    setError("");
+    setResult(null);
+    try {
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      const pastData = entries.slice(-20).map(e => ({
+        title: e.title,
+        tags: e.tags,
+        q1: e.answers?.q1 || "",
+        q2: e.answers?.q2 || "",
+        q3: e.answers?.q3 || "",
+        q4: e.answers?.q4 || "",
+        firstImpression: e.firstImpression || ""
+      }));
+
+      const prompt = `デザイン学生の解剖図鑑データから、新しい課題に使える要素を提案してください。
+
+課題テーマ：「${theme}」
+
+【解剖図鑑データ】
+${pastData.map(e => `・${e.title}
+  タグ：${e.tags.join("、")}
+  惹かれた点：${e.q1}
+  作者の意図：${e.q2}
+  第一印象：${e.firstImpression}`).join("
+")}
+
+この課題テーマに対して、解剖データから使えそうな要素を3つ提案してください。
+各提案には「どの作品の」「どの要素が」「なぜ使えるか」を含めてください。
+
+必ずJSON形式のみで返してください：
+{"proposals":[{"work":"作品名","element":"使える要素","reason":"なぜ使えるか（一言）"},{"work":"作品名","element":"使える要素","reason":"なぜ使えるか（一言）"},{"work":"作品名","element":"使える要素","reason":"なぜ使えるか（一言）"}],"missing":"この人の解剖データから見えてくる、まだ取り込めていない視点（一言）"}`;
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+        }
+      );
+      const data = await response.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      if (!text) throw new Error("empty");
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error("no json");
+      setResult(JSON.parse(jsonMatch[0]));
+    } catch (e) {
+      setError("エラーが発生しました。もう一度試してください。");
+    }
+    setLoading(false);
+  };
+
+  return (
+    <main style={{ maxWidth: 720, margin: "0 auto", padding: "24px 20px" }}>
+      <div style={{ fontSize: 34, fontWeight: 700, letterSpacing: "-0.5px", marginBottom: 8 }}>Apply</div>
+      <div style={{ fontSize: 15, color: "#8E8E93", marginBottom: 24 }}>課題テーマを入れると、図鑑から使えそうな要素を提案します</div>
+
+      <div style={{ background: "#fff", borderRadius: 16, overflow: "hidden", marginBottom: 14 }}>
+        <textarea
+          value={theme}
+          onChange={e => setTheme(e.target.value)}
+          placeholder="今取り組んでいる課題のテーマを入力（例：環境問題をテーマにしたポスター）"
+          rows={3}
+          style={{ width: "100%", padding: "16px", fontSize: 15, border: "none", background: "transparent", fontFamily: "inherit", resize: "none", outline: "none", lineHeight: 1.6 }}
+        />
+      </div>
+
+      <button
+        onClick={generate}
+        disabled={loading || !theme}
+        style={{ width: "100%", background: loading ? "#E5E5EA" : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", color: loading ? "#8E8E93" : "#fff", border: "none", padding: "16px", borderRadius: 14, fontSize: 15, fontWeight: 600, cursor: loading ? "not-allowed" : "pointer", fontFamily: "inherit", marginBottom: 20 }}
+      >
+        {loading ? "✨ 図鑑から分析中..." : "✨ 使える要素を提案してもらう"}
+      </button>
+
+      {error && <div style={{ background: "#FFF3CD", borderRadius: 12, padding: "12px 16px", fontSize: 13, color: "#856404", marginBottom: 16 }}>{error}</div>}
+
+      {result && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ fontSize: 13, color: "#8E8E93", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>使えそうな要素</div>
+          {result.proposals?.map((p: any, i: number) => (
+            <div key={i} style={{ background: "#fff", borderRadius: 14, padding: "16px 18px" }}>
+              <div style={{ fontSize: 12, color: "#007AFF", fontWeight: 600, marginBottom: 6 }}>{p.work}</div>
+              <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>{p.element}</div>
+              <div style={{ fontSize: 14, color: "#8E8E93" }}>{p.reason}</div>
+            </div>
+          ))}
+          {result.missing && (
+            <div style={{ background: "#F2F2F7", borderRadius: 14, padding: "16px 18px", borderLeft: "3px solid #FF9500" }}>
+              <div style={{ fontSize: 12, color: "#FF9500", fontWeight: 600, marginBottom: 6 }}>まだ取り込めていない視点</div>
+              <div style={{ fontSize: 15 }}>{result.missing}</div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {entries.length === 0 && (
+        <div style={{ textAlign: "center", padding: "40px 20px", color: "#8E8E93" }}>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>📚</div>
+          <div style={{ fontSize: 15 }}>まず作品を解剖して図鑑を作ろう</div>
+        </div>
+      )}
+    </main>
+  );
+}
+
 const inputStyle = { display: "block", width: "100%", padding: "14px 16px", fontSize: 15, border: "none", background: "transparent", fontFamily: "inherit", outline: "none" };
 
 function FormSheetComponent({ closeSheet, saveEntry, sheetMode, fileInputRef, handleImageUpload, urlInput, setUrlInput, fetchingUrl, handleUrlFetch, formEntry, setFormEntry, generatingAI, generateWithAI, aiVersion, aiError, setAiError, TAGS, QUESTIONS }) {
@@ -234,7 +350,27 @@ export default function App() {
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
       const firstImpressionEl = document.querySelector('textarea[placeholder="なぜ良いと思った？一言で"]');
       const firstImpression = firstImpressionEl?.value || formEntry.firstImpression || "";
-      const jsonInstruction = `必ずJSON形式のみで返してください（説明文や\`\`\`は不要）: {"q1":"どこに惹かれたかの仮説（1-2文）","q2":"作者の視点・意図の仮説（1-2文）","q3":"このデザインが解いている課題・テーマの仮説（1-2文）","q4":"自分の作品に持ち込めそうなこと（1-2文）"}`;
+      // 過去の解剖データを取得
+      let pastEntries = [];
+      try {
+        const saved = localStorage.getItem("naosu-entries");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          pastEntries = parsed.slice(-10).map(e => ({
+            title: e.title,
+            tags: e.tags,
+            q4: e.answers?.q4 || ""
+          }));
+        }
+      } catch {}
+      const pastDataStr = pastEntries.length > 0
+        ? `
+
+【この人の過去の解剖データ】
+${pastEntries.map(e => `・${e.title}：タグ[${e.tags.join(",")}] 持ち込もうとしたこと「${e.q4}」`).join("
+")}`
+        : "";
+      const jsonInstruction = `回答は全て10〜20文字以内の短い一言にしてください。必ずJSON形式のみで返してください（説明文や\`\`\`は不要）: {"q1":"惹かれた点（一言）","q2":"作者の意図の仮説（一言）","q3":"解いている課題の仮説（一言）","q4":"過去の解剖データを参考に、この人がまだ取り込めていない・足りていない要素を具体的に一言で"}`;
 
       let parts = [];
 
@@ -247,7 +383,9 @@ export default function App() {
 
 学生の第一印象: 「${firstImpression}」` : ""}
 
-画像を見て、学生の第一印象を踏まえた上で4つの問いに対する鋭い仮説を日本語で生成してください。
+${pastDataStr}
+
+画像を見て、学生の第一印象と過去の解剖データを踏まえた上で4つの問いに対する仮説を日本語で生成してください。
 
 ${jsonInstruction}` },
           { inline_data: { mime_type: mimeType, data: base64 } }
@@ -268,8 +406,9 @@ ${jsonInstruction}` },
 作品: ${titleVal || "不明"}
 ${sourceVal ? `出典: ${sourceVal}` : ""}${firstImpression ? `
 学生の第一印象: 「${firstImpression}」` : ""}
+${pastDataStr}
 
-第一印象を踏まえて4つの問いに対する仮説を日本語で生成してください。
+第一印象と過去の解剖データを踏まえて4つの問いに対する仮説を日本語で生成してください。
 
 ${jsonInstruction}` }];
       }
@@ -446,7 +585,10 @@ ${jsonInstruction}` }];
           </div>
         )}
 
-        {/* 全画面プレビュー */}
+        {/* Apply */}
+      {view === "apply" && <ApplyPage entries={entries} />}
+
+      {/* 全画面プレビュー */}
         {imagePreview && (
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.95)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300 }} onClick={() => setImagePreview(false)}>
             <img src={projectData.image} alt="" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} referrerPolicy="no-referrer" />
@@ -590,7 +732,7 @@ ${jsonInstruction}` }];
         {view !== "detail" && (
           <div style={{ maxWidth: 960, margin: "0 auto", padding: "8px 20px 10px" }}>
             <div style={{ display: "inline-flex", background: "rgba(118,118,128,0.12)", borderRadius: 9, padding: 2 }}>
-              {[["home", "Collection"], ["map", "Insight"]].map(([v, label]) => (
+              {[["home", "Collection"], ["map", "Insight"], ["apply", "Apply"]].map(([v, label]) => (
                 <button key={v} className="seg-btn" onClick={() => setView(v)} style={{ padding: "5px 18px", borderRadius: 7, fontSize: 13, fontWeight: 500, background: view === v ? "#fff" : "transparent", color: view === v ? "#000" : "#666", boxShadow: view === v ? "0 1px 3px rgba(0,0,0,0.12)" : "none" }}>{label}</button>
               ))}
             </div>
@@ -780,6 +922,9 @@ ${jsonInstruction}` }];
           </div>
         </main>
       )}
+
+      {/* Apply */}
+      {view === "apply" && <ApplyPage entries={entries} />}
 
       {/* 全画面プレビュー */}
       {imagePreview && selected?.image && (
