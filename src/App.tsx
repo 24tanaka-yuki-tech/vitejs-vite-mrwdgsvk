@@ -39,18 +39,9 @@ function ApplyPage({ entries }: { entries: any[] }) {
     if (!subject) return;
     setLoading(true); setError(""); setThemes([]); setRoadmap(null); setSelectedTheme(null);
     try {
-      const past = pastData.map((e: any) => `・${e.title}｜${e.tags.join(",")}｜${e.firstImpression}`).join("
-");
-      const result = await callGemini(
-        `デザイン学生の解剖図鑑から「その人らしさ」を分析して、課題に合ったテーマ案を3つ提案してください。
-
-お題：「${subject}」
-
-【解剖図鑑】
-${past}
-
-必ずJSON形式のみ：{"style":"この学生のらしさ（一言）","themes":[{"title":"テーマ名","concept":"切り口（1文）","why":"この学生に合う理由（一言）"},{"title":"テーマ名","concept":"切り口（1文）","why":"この学生に合う理由（一言）"},{"title":"テーマ名","concept":"切り口（1文）","why":"この学生に合う理由（一言）"}]}`
-      );
+      const past = pastData.map((e: any) => `・${e.title}｜${e.tags.join(",")}｜${e.firstImpression}`).join("\n");
+      const p1 = "デザイン学生の解剖図鑑からその人らしさを分析して、課題に合ったテーマ案を3つ提案してください。\n\nお題：" + subject + "\n\n解剖図鑑:\n" + past + "\n\n必ずJSON形式のみで返してください: {style:この学生のらしさ一言,themes:[{title:テーマ名,concept:切り口1文,why:この学生に合う理由一言},{title:テーマ名,concept:切り口1文,why:この学生に合う理由一言},{title:テーマ名,concept:切り口1文,why:この学生に合う理由一言}]}";
+      const result = await callGemini(p1);
       setThemes(result.themes || []);
     } catch { setError("エラーが発生しました。もう一度試してください。"); }
     setLoading(false);
@@ -59,19 +50,9 @@ ${past}
   const generateRoadmap = async (theme: any) => {
     setSelectedTheme(theme); setLoading(true); setRoadmap(null);
     try {
-      const past = pastData.map((e: any) => `・${e.title}｜${e.tags.join(",")}｜持ち込もうとしたこと:${e.q4}`).join("
-");
-      const result = await callGemini(
-        `テーマ「${theme.title}」で制作するための具体的な制作プロセスと、図鑑から使えるアイデアを提案してください。
-
-お題：「${subject}」
-テーマ：「${theme.title}」（${theme.concept}）
-
-【図鑑データ】
-${past}
-
-必ずJSON形式のみ：{"steps":[{"step":1,"title":"ステップ名","action":"やること（一言）"},{"step":2,"title":"ステップ名","action":"やること（一言）"},{"step":3,"title":"ステップ名","action":"やること（一言）"},{"step":4,"title":"ステップ名","action":"やること（一言）"},{"step":5,"title":"ステップ名","action":"やること（一言）"}],"ideas":[{"source":"参照作品","element":"要素","application":"テーマへの置き換え（一言）"},{"source":"参照作品","element":"要素","application":"テーマへの置き換え（一言）"},{"source":"参照作品","element":"要素","application":"テーマへの置き換え（一言）"}],"concept":{"title":"コンセプトタイトル","description":"最終コンセプト提案（2文）"}}`
-      );
+      const past = pastData.map((e: any) => `・${e.title}｜${e.tags.join(",")}｜持ち込もうとしたこと:${e.q4}`).join("\n");
+      const p2 = "テーマ「" + theme.title + "」で制作するための制作プロセスと図鑑から使えるアイデアを提案してください。\n\nお題：" + subject + "\nテーマ：" + theme.title + "（" + theme.concept + "）\n\n図鑑データ:\n" + past + "\n\n必ずJSON形式のみで返してください: {steps:[{step:1,title:ステップ名,action:やること一言},{step:2,title:ステップ名,action:やること一言},{step:3,title:ステップ名,action:やること一言},{step:4,title:ステップ名,action:やること一言},{step:5,title:ステップ名,action:やること一言}],ideas:[{source:参照作品,element:要素,application:テーマへの置き換え一言},{source:参照作品,element:要素,application:テーマへの置き換え一言},{source:参照作品,element:要素,application:テーマへの置き換え一言}],concept:{title:コンセプトタイトル,description:最終コンセプト2文}}";
+      const result = await callGemini(p2);
       setRoadmap(result);
     } catch { setError("エラーが発生しました。もう一度試してください。"); }
     setLoading(false);
