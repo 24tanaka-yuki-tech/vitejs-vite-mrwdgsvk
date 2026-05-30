@@ -179,7 +179,6 @@ function FormSheetComponent({ closeSheet, saveEntry, sheetMode, fileInputRef, ha
             <input defaultValue={formEntry.title} onBlur={e => setFormEntry(p => ({ ...p, title: e.target.value }))} placeholder="作品名" style={{ ...inputStyle, borderBottom: "0.5px solid #E5E5EA" }} />
             <input defaultValue={formEntry.source} onBlur={e => setFormEntry(p => ({ ...p, source: e.target.value }))} placeholder="どこで見た？（re:designer, Behance...）" style={inputStyle} />
           </div>
-          {/* 第一印象入力 */}
           <div style={{ background: "#fff", borderRadius: 14, padding: "14px 16px" }}>
             <div style={{ fontSize: 12, color: "#8E8E93", fontWeight: 600, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>💬 なぜ良いと思った？</div>
             <textarea defaultValue={formEntry.firstImpression || ""} onBlur={e => setFormEntry(p => ({ ...p, firstImpression: e.target.value }))} rows={2} placeholder="なぜ良いと思った？一言で" style={{ width: "100%", border: "none", fontSize: 15, color: "#000", background: "transparent", lineHeight: 1.5, fontFamily: "inherit", resize: "none", outline: "none" }} />
@@ -229,16 +228,27 @@ const QUESTIONS = [
   { id: "q4", label: "自分の作品に持ち込めること", placeholder: "具体的に学べること" },
 ];
 const EMPTY_ENTRY = { title: "", source: "", url: "", image: null, pdfData: null, color: "#C8C8C8", tags: [], answers: { q1: "", q2: "", q3: "", q4: "" }, memo: "", firstImpression: "" };
-const DEMO_ENTRIES = [
-  { id: 1, title: "MUJI 2024 Annual Report", source: "Behance", url: "", image: "https://images.unsplash.com/photo-1600132806370-bf17e65e942f?w=600&q=80", pdfData: null, color: "#D4C9B4", tags: ["余白", "タイポグラフィ", "グリッド"], date: "2024.11.03", memo: "", answers: { q1: "余白の使い方が異常に贅沢。テキストが呼吸している感じ", q2: "情報を「削る」ことに確信を持っている", q3: "自分なら不安で情報を詰めすぎてた", q4: "1ページに要素を3つまでに絞る練習をする" } },
-  { id: 2, title: "同期のポートフォリオ", source: "re:designer", url: "", image: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&q=80", pdfData: null, color: "#8B9E8F", tags: ["世界観", "配色", "レイアウト"], date: "2024.11.12", memo: "", answers: { q1: "全ページに一貫した「暗さ」がある", q2: "好きなものが明確で、それ以外を全部捨ててる", q3: "自分は万人受けを意識して丸くなってた", q4: "自分の「嫌いなもの」リストを作ってみる" } },
-  { id: 3, title: "Nike × Wieden+Kennedy", source: "Pinterest", url: "", image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&q=80", pdfData: null, color: "#2D2D2D", tags: ["タイポグラフィ", "構成", "世界観"], date: "2024.11.18", memo: "", answers: { q1: "文字が主役になっている", q2: "タイポグラフィを「イラスト」として扱っている", q3: "文字を読ませようとしてた", q4: "テキストオンリーのビジュアル制作を週1回やる" } },
-];
 
 export default function App() {
-  // URLからprojectIdを取得
   const urlParams = new URLSearchParams(window.location.search);
   const projectId = urlParams.get("project");
+
+  // ★ Auth state（これが抜けていたのが原因）
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authMode, setAuthMode] = useState<"login" | "signup">("login");
+  const [authSubmitting, setAuthSubmitting] = useState(false);
+  const [authError, setAuthError] = useState("");
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+      setAuthLoading(false);
+    });
+    return unsubscribe;
+  }, []);
 
   // プロフィール
   const [userProfile, setUserProfile] = useState(() => {
@@ -252,7 +262,6 @@ export default function App() {
   const [entries, setEntries] = useState<any[]>([]);
   const [entriesLoading, setEntriesLoading] = useState(true);
 
-  // Firestoreからentries読み込み
   useEffect(() => {
     if (!currentUser) { setEntries([]); setEntriesLoading(false); return; }
     const q = query(collection(db, "users", currentUser.uid, "entries"), orderBy("createdAt", "desc"));
@@ -266,6 +275,7 @@ export default function App() {
     });
     return () => unsub();
   }, [currentUser]);
+
   const [selected, setSelected] = useState(null);
   const [sheetMode, setSheetMode] = useState(null);
   const [formEntry, setFormEntry] = useState(EMPTY_ENTRY);
@@ -274,7 +284,6 @@ export default function App() {
   const [detailProjectData, setDetailProjectData] = useState(null);
   const fileInputRef = useRef(null);
 
-  // 詳細画面の共有エントリーをリアルタイム取得
   useEffect(() => {
     if (!selected?.projectId) { setSharedEntries([]); setDetailProjectData(null); return; }
     const fetchDetail = async () => {
@@ -288,7 +297,6 @@ export default function App() {
     return () => unsub();
   }, [selected?.projectId]);
 
-  // 共同プロジェクトのstate
   const [projectData, setProjectData] = useState(null);
   const [projectEntries, setProjectEntries] = useState([]);
   const [userName, setUserName] = useState("");
@@ -300,7 +308,6 @@ export default function App() {
   const [projectUrl, setProjectUrl] = useState(null);
   const projectFileRef = useRef(null);
 
-  // 共同プロジェクトデータを取得
   useEffect(() => {
     if (!projectId) return;
     const fetchProject = async () => {
@@ -315,7 +322,6 @@ export default function App() {
     return () => unsub();
   }, [projectId]);
 
-  // プロフィールがあれば共有プロジェクトの名前を自動設定
   useEffect(() => {
     if (userProfile && projectId) {
       setUserName(userProfile.name);
@@ -337,9 +343,7 @@ export default function App() {
     setFetchingUrl(true);
     try {
       const hostname = new URL(urlInput).hostname.replace("www.", "");
-      // faviconをサムネイルとして使用（確実にCORSなし）
       const faviconUrl = `https://www.google.com/s2/favicons?domain=${hostname}&sz=256`;
-      // タイトルはmicrolinkで取得
       let title = "";
       try {
         const res = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(urlInput)}`);
@@ -378,7 +382,6 @@ export default function App() {
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
       const firstImpressionEl = document.querySelector('textarea[placeholder="なぜ良いと思った？一言で"]');
       const firstImpression = firstImpressionEl?.value || formEntry.firstImpression || "";
-      // 過去の解剖データを取得
       let pastEntries = [];
       try {
         const saved = localStorage.getItem("naosu-entries");
@@ -398,43 +401,20 @@ export default function App() {
 
       let parts = [];
 
-      // 画像がある場合はVision APIで解析
       if (formEntry.image && formEntry.image !== "pdf" && formEntry.image.startsWith("data:image")) {
         const base64 = formEntry.image.split(",")[1];
         const mimeType = formEntry.image.split(";")[0].split(":")[1];
         parts = [
-          { text: `デザイン学生がこのデザイン作品を解剖しています。${titleVal ? `作品名: ${titleVal}` : ""}${sourceVal ? ` 出典: ${sourceVal}` : ""}${firstImpression ? `
-
-学生の第一印象: 「${firstImpression}」` : ""}
-
-${pastDataStr}
-
-画像を見て、学生の第一印象と過去の解剖データを踏まえた上で4つの問いに対する仮説を日本語で生成してください。
-
-${jsonInstruction}` },
+          { text: `デザイン学生がこのデザイン作品を解剖しています。${titleVal ? `作品名: ${titleVal}` : ""}${sourceVal ? ` 出典: ${sourceVal}` : ""}${firstImpression ? `\n\n学生の第一印象: 「${firstImpression}」` : ""}\n${pastDataStr}\n\n画像を見て、学生の第一印象と過去の解剖データを踏まえた上で4つの問いに対する仮説を日本語で生成してください。\n\n${jsonInstruction}` },
           { inline_data: { mime_type: mimeType, data: base64 } }
         ];
       } else if (formEntry.image && formEntry.image !== "pdf" && formEntry.image.startsWith("http")) {
-        // URL画像の場合
         parts = [
-          { text: `デザイン学生がこのデザイン作品を解剖しています。${titleVal ? `作品名: ${titleVal}` : ""}${sourceVal ? ` 出典: ${sourceVal}` : ""}
-
-4つの問いに対する仮説を日本語で生成してください。
-
-${jsonInstruction}` },
+          { text: `デザイン学生がこのデザイン作品を解剖しています。${titleVal ? `作品名: ${titleVal}` : ""}${sourceVal ? ` 出典: ${sourceVal}` : ""}\n\n4つの問いに対する仮説を日本語で生成してください。\n\n${jsonInstruction}` },
           { fileData: { mimeType: "image/jpeg", fileUri: formEntry.image } }
         ];
       } else {
-        // テキストのみ
-        parts = [{ text: `デザイン学生がデザイン作品を解剖しています。
-作品: ${titleVal || "不明"}
-${sourceVal ? `出典: ${sourceVal}` : ""}${firstImpression ? `
-学生の第一印象: 「${firstImpression}」` : ""}
-${pastDataStr}
-
-第一印象と過去の解剖データを踏まえて4つの問いに対する仮説を日本語で生成してください。
-
-${jsonInstruction}` }];
+        parts = [{ text: `デザイン学生がデザイン作品を解剖しています。\n作品: ${titleVal || "不明"}\n${sourceVal ? `出典: ${sourceVal}` : ""}${firstImpression ? `\n学生の第一印象: 「${firstImpression}」` : ""}\n${pastDataStr}\n\n第一印象と過去の解剖データを踏まえて4つの問いに対する仮説を日本語で生成してください。\n\n${jsonInstruction}` }];
       }
 
       const response = await fetch(
@@ -442,9 +422,7 @@ ${jsonInstruction}` }];
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts }]
-          })
+          body: JSON.stringify({ contents: [{ parts }] })
         }
       );
       const data = await response.json();
@@ -537,6 +515,7 @@ ${jsonInstruction}` }];
     setProjectUrl(url);
     setCreatingProject(true);
   };
+
   const openDetail = (entry: any) => { setSelected(entry); setView("detail"); };
 
   const handleAuth = async () => {
@@ -561,7 +540,6 @@ ${jsonInstruction}` }];
     setAuthSubmitting(false);
   };
 
-  // 共同プロジェクト作成
   const createProject = async () => {
     if (!newProjectTitle) return;
     const docRef = await addDoc(collection(db, "projects"), {
@@ -573,7 +551,6 @@ ${jsonInstruction}` }];
     setProjectUrl(url);
   };
 
-  // 共同プロジェクトに解剖を投稿
   const submitProjectEntry = async () => {
     if (!userName || !projectId) return;
     const answers = {};
@@ -586,7 +563,6 @@ ${jsonInstruction}` }];
       memo: formEntry.memo || "",
       createdAt: serverTimestamp(),
     });
-    // 自分のCollectionにも追加（Firestoreに保存）
     if (currentUser) {
       const newEntry = {
         title: projectData.title,
@@ -607,15 +583,10 @@ ${jsonInstruction}` }];
     setProjectSubmitted(true);
   };
 
-  // FormSheetはファイル上部で外部定義済み
-
   const formSheetProps = { closeSheet, saveEntry, sheetMode, fileInputRef, handleImageUpload, urlInput, setUrlInput, fetchingUrl, handleUrlFetch, formEntry, setFormEntry, generatingAI, generateWithAI, aiVersion, aiError, setAiError, TAGS, QUESTIONS };
-
-  const _unused = { display: "block", width: "100%", padding: "14px 16px", fontSize: 15, border: "none", background: "transparent", fontFamily: "inherit", outline: "none" };
-
   const FormSheet = () => <FormSheetComponent {...formSheetProps} />;
 
-  // ローディング中（共有プロジェクトモードの前に置く）
+  // ローディング中
   if (authLoading) {
     return <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", fontFamily: "-apple-system, sans-serif", color: "#8E8E93", fontSize: 15 }}>読み込み中...</div>;
   }
@@ -628,7 +599,6 @@ ${jsonInstruction}` }];
       <div style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif", background: "#F2F2F7", minHeight: "100vh" }}>
         <style>{`* { box-sizing: border-box; margin: 0; padding: 0; } textarea, input { font-family: inherit; outline: none; } textarea { resize: none; }`}</style>
 
-        {/* ヘッダー */}
         <div style={{ background: "rgba(242,242,247,0.92)", backdropFilter: "blur(20px)", borderBottom: "0.5px solid rgba(0,0,0,0.12)", padding: "0 20px", height: 52, display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100 }}>
           <button onClick={() => window.location.href = window.location.origin} style={{ background: "none", border: "none", color: "#007AFF", fontSize: 17, cursor: "pointer", display: "flex", alignItems: "center", gap: 4, fontFamily: "inherit" }}>
             <span style={{ fontSize: 20 }}>‹</span> ホーム
@@ -637,7 +607,6 @@ ${jsonInstruction}` }];
           <div style={{ width: 60 }} />
         </div>
 
-        {/* 作品画像 */}
         {projectData.image && (
           <div style={{ height: 240, overflow: "hidden", position: "relative", cursor: "pointer" }} onClick={() => setImagePreview(true)}>
             <img src={projectData.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} referrerPolicy="no-referrer" />
@@ -645,7 +614,6 @@ ${jsonInstruction}` }];
           </div>
         )}
 
-        {/* 全画面プレビュー */}
         {imagePreview && (
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.95)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300 }} onClick={() => setImagePreview(false)}>
             <img src={projectData.image} alt="" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} referrerPolicy="no-referrer" />
@@ -654,7 +622,6 @@ ${jsonInstruction}` }];
         )}
 
         <div style={{ maxWidth: 720, margin: "0 auto", padding: "24px 20px" }}>
-          {/* URLリンク */}
           {projectData.url && (
             <div style={{ marginBottom: 16 }}>
               <a href={projectData.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: "#007AFF", background: "#fff", padding: "8px 16px", borderRadius: 20, textDecoration: "none", fontWeight: 500, display: "inline-block" }}>元のページを見る →</a>
@@ -662,7 +629,6 @@ ${jsonInstruction}` }];
           )}
 
           {!userNameSet ? (
-            // 名前入力
             <div style={{ background: "#fff", borderRadius: 16, padding: "28px 24px", textAlign: "center" }}>
               <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>参加する</div>
               <div style={{ fontSize: 15, color: "#8E8E93", marginBottom: 24 }}>あなたの名前を入力して解剖を始めよう</div>
@@ -670,12 +636,9 @@ ${jsonInstruction}` }];
               <button onClick={() => userName && setUserNameSet(true)} style={{ width: "100%", background: "#007AFF", color: "#fff", border: "none", padding: "14px", borderRadius: 12, fontSize: 16, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>始める</button>
             </div>
           ) : projectSubmitted ? (
-            // 投稿完了 → みんなのメモ
             <div>
               <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>みんなの解剖</div>
               <div style={{ fontSize: 15, color: "#8E8E93", marginBottom: 20 }}>{projectEntries.length}人が参加</div>
-              
-              {/* 共有主の考察 */}
               {projectData.ownerAnswers && (
                 <div style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", marginBottom: 12, borderLeft: "3px solid #007AFF" }}>
                   <div style={{ fontSize: 14, fontWeight: 600, color: "#007AFF", marginBottom: 10 }}>共有者の考察</div>
@@ -698,7 +661,6 @@ ${jsonInstruction}` }];
                   )}
                 </div>
               )}
-
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {projectEntries.map(entry => (
                   <div key={entry.id} style={{ background: "#fff", borderRadius: 16, padding: "18px 20px" }}>
@@ -708,7 +670,7 @@ ${jsonInstruction}` }];
                         <span key={tag} style={{ fontSize: 12, background: "#F2F2F7", color: "#3C3C43", padding: "3px 10px", borderRadius: 20, fontWeight: 500 }}>{tag}</span>
                       ))}
                     </div>
-                    {QUESTIONS.map((q, i) => entry.answers?.[q.id] && (
+                    {QUESTIONS.map((q) => entry.answers?.[q.id] && (
                       <div key={q.id} style={{ marginBottom: 10 }}>
                         <div style={{ fontSize: 11, color: "#8E8E93", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 3 }}>{q.label}</div>
                         <div style={{ fontSize: 14, lineHeight: 1.6 }}>{entry.answers[q.id]}</div>
@@ -725,7 +687,6 @@ ${jsonInstruction}` }];
               </div>
             </div>
           ) : (
-            // 解剖フォーム
             <div>
               <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>解剖する</div>
               <div style={{ fontSize: 15, color: "#8E8E93", marginBottom: 20 }}>{userName} として参加中</div>
@@ -759,7 +720,7 @@ ${jsonInstruction}` }];
     );
   }
 
-  // 未ログイン時：ログイン/サインアップ画面
+  // 未ログイン時
   if (!currentUser) {
     return (
       <div style={{ fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif", background: "#F2F2F7", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
@@ -769,7 +730,6 @@ ${jsonInstruction}` }];
             <div style={{ fontSize: 24, fontWeight: 700, marginBottom: 4 }}>なおす</div>
             <div style={{ fontSize: 14, color: "#8E8E93" }}>嫉妬を、図鑑にする。</div>
           </div>
-
           <div style={{ display: "flex", background: "#F2F2F7", borderRadius: 10, padding: 3, marginBottom: 24 }}>
             {(["login", "signup"] as const).map(mode => (
               <button key={mode} onClick={() => { setAuthMode(mode); setAuthError(""); }} style={{ flex: 1, padding: "8px", borderRadius: 8, border: "none", background: authMode === mode ? "#fff" : "transparent", fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: "inherit", boxShadow: authMode === mode ? "0 1px 3px rgba(0,0,0,0.12)" : "none" }}>
@@ -777,14 +737,11 @@ ${jsonInstruction}` }];
               </button>
             ))}
           </div>
-
           <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 20 }}>
             <input value={authEmail} onChange={e => setAuthEmail(e.target.value)} type="email" placeholder="メールアドレス" style={{ padding: "14px 16px", borderRadius: 12, border: "1px solid #E5E5EA", fontSize: 15, fontFamily: "inherit", outline: "none", background: "#F2F2F7" }} />
             <input value={authPassword} onChange={e => setAuthPassword(e.target.value)} type="password" placeholder="パスワード（6文字以上）" onKeyDown={e => e.key === "Enter" && handleAuth()} style={{ padding: "14px 16px", borderRadius: 12, border: "1px solid #E5E5EA", fontSize: 15, fontFamily: "inherit", outline: "none", background: "#F2F2F7" }} />
           </div>
-
           {authError && <div style={{ background: "#FFF3CD", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#856404", marginBottom: 16 }}>{authError}</div>}
-
           <button onClick={handleAuth} disabled={authSubmitting || !authEmail || !authPassword} style={{ width: "100%", background: "#007AFF", color: "#fff", border: "none", padding: "16px", borderRadius: 12, fontSize: 16, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", opacity: authSubmitting ? 0.7 : 1 }}>
             {authSubmitting ? "処理中..." : authMode === "login" ? "ログイン" : "アカウントを作成"}
           </button>
@@ -798,7 +755,6 @@ ${jsonInstruction}` }];
     <div style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif", background: "#F2F2F7", minHeight: "100vh", color: "#000" }}>
       <style>{`* { box-sizing: border-box; margin: 0; padding: 0; } ::-webkit-scrollbar { width: 0; } .card { transition: transform 0.18s ease, box-shadow 0.18s ease; cursor: pointer; } .card:hover { transform: scale(1.02); box-shadow: 0 8px 24px rgba(0,0,0,0.12); } .sf-btn { cursor: pointer; transition: opacity 0.15s; border: none; } .sf-btn:hover { opacity: 0.75; } .seg-btn { cursor: pointer; transition: all 0.2s; border: none; }`}</style>
 
-      {/* Nav */}
       <div style={{ background: "rgba(242,242,247,0.92)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderBottom: "0.5px solid rgba(0,0,0,0.12)", position: "sticky", top: 0, zIndex: 100 }}>
         <div style={{ maxWidth: 960, margin: "0 auto", padding: "0 20px", height: 52, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           {view === "detail" ? (
@@ -834,11 +790,9 @@ ${jsonInstruction}` }];
         )}
       </div>
 
-      {/* Home */}
       {view === "home" && (
         <main style={{ maxWidth: 960, margin: "0 auto", padding: "24px 20px" }}>
           <div style={{ fontSize: 34, fontWeight: 700, letterSpacing: "-0.5px", marginBottom: 20 }}>Collection</div>
-
           {entries.length === 0 ? (
             <div style={{ textAlign: "center", padding: "80px 20px" }}>
               <div style={{ fontSize: 48, marginBottom: 16 }}>🔬</div>
@@ -874,7 +828,6 @@ ${jsonInstruction}` }];
         </main>
       )}
 
-      {/* Detail */}
       {view === "detail" && selected && (
         <main style={{ maxWidth: 720, margin: "0 auto", padding: "0 0 48px" }}>
           <div style={{ height: 280, background: selected.color, overflow: "hidden", position: "relative", cursor: selected.image ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => selected.image && setImagePreview(true)}>
@@ -913,14 +866,12 @@ ${jsonInstruction}` }];
               </div>
             </div>
 
-            {/* みんなの解剖 */}
             {selected.projectId && (
               <div style={{ marginTop: 32 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
                   <div style={{ fontSize: 17, fontWeight: 600 }}>みんなの解剖</div>
                   <span style={{ fontSize: 13, color: "#8E8E93" }}>{sharedEntries.length}件</span>
                 </div>
-                {/* 共有者の考察 */}
                 {detailProjectData?.ownerAnswers && (
                   <div style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", marginBottom: 10, borderLeft: "3px solid #007AFF" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
@@ -946,7 +897,6 @@ ${jsonInstruction}` }];
                     )}
                   </div>
                 )}
-
                 {sharedEntries.length === 0 ? (
                   <div style={{ background: "#fff", borderRadius: 12, padding: "20px", textAlign: "center", color: "#8E8E93", fontSize: 14 }}>まだ誰も解剖していない</div>
                 ) : (
@@ -981,7 +931,6 @@ ${jsonInstruction}` }];
         </main>
       )}
 
-      {/* Insight */}
       {view === "map" && (
         <main style={{ maxWidth: 720, margin: "0 auto", padding: "24px 20px" }}>
           <div style={{ fontSize: 34, fontWeight: 700, letterSpacing: "-0.5px", marginBottom: 24 }}>Insight</div>
@@ -1017,10 +966,8 @@ ${jsonInstruction}` }];
         </main>
       )}
 
-      {/* Apply */}
       {view === "apply" && <ApplyPage entries={entries} />}
 
-      {/* 全画面プレビュー */}
       {imagePreview && selected?.image && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.95)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300 }}>
           {selected.pdfData ? (
@@ -1036,7 +983,6 @@ ${jsonInstruction}` }];
         </div>
       )}
 
-      {/* 共有プロジェクト作成モーダル */}
       {creatingProject && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 200 }}>
           <div style={{ background: "#F2F2F7", width: "100%", maxWidth: 640, maxHeight: "90vh", overflowY: "auto", borderRadius: "20px 20px 0 0", padding: "0 0 32px" }}>
@@ -1048,7 +994,6 @@ ${jsonInstruction}` }];
               <div style={{ fontSize: 17, fontWeight: 600 }}>共有プロジェクト</div>
               <div style={{ width: 60 }} />
             </div>
-
             {projectUrl ? (
               <div style={{ padding: "0 20px", textAlign: "center" }}>
                 <div style={{ fontSize: 40, marginBottom: 12 }}>🎉</div>
@@ -1083,7 +1028,6 @@ ${jsonInstruction}` }];
 
       {sheetMode && <FormSheet />}
 
-      {/* プロフィール設定 */}
       {(!userProfile || settingProfile) && (
         <div style={{ position: "fixed", inset: 0, background: settingProfile ? "rgba(0,0,0,0.4)" : "#F2F2F7", display: "flex", alignItems: settingProfile ? "flex-end" : "center", justifyContent: "center", zIndex: 300 }}>
           <div style={{ background: "#F2F2F7", width: "100%", maxWidth: 480, borderRadius: settingProfile ? "20px 20px 0 0" : 24, padding: "32px 24px 40px" }}>
