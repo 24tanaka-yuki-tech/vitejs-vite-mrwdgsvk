@@ -615,6 +615,11 @@ ${jsonInstruction}` }];
 
   const FormSheet = () => <FormSheetComponent {...formSheetProps} />;
 
+  // ローディング中（共有プロジェクトモードの前に置く）
+  if (authLoading) {
+    return <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", fontFamily: "-apple-system, sans-serif", color: "#8E8E93", fontSize: 15 }}>読み込み中...</div>;
+  }
+
   // 共同プロジェクトモード
   if (projectId) {
     if (!projectData) return <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", fontFamily: "-apple-system, sans-serif", color: "#8E8E93" }}>読み込み中...</div>;
@@ -752,11 +757,6 @@ ${jsonInstruction}` }];
         </div>
       </div>
     );
-  }
-
-  // ローディング中
-  if (authLoading) {
-    return <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", fontFamily: "-apple-system, sans-serif", color: "#8E8E93", fontSize: 15 }}>読み込み中...</div>;
   }
 
   // 未ログイン時：ログイン/サインアップ画面
