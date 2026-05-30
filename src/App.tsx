@@ -138,9 +138,23 @@ function ApplyPage({ entries }: { entries: any[] }) {
 const inputStyle = { display: "block", width: "100%", padding: "14px 16px", fontSize: 15, border: "none", background: "transparent", fontFamily: "inherit", outline: "none" };
 
 function FormSheetComponent({ closeSheet, saveEntry, sheetMode, fileInputRef, handleImageUpload, urlInput, setUrlInput, fetchingUrl, handleUrlFetch, formEntry, setFormEntry, generatingAI, generateWithAI, aiVersion, aiError, setAiError, TAGS, QUESTIONS }) {
+  // ★ バグ②修正: タグ押下時にスクロール位置を保持するためrefで管理
+  const sheetRef = useRef<HTMLDivElement>(null);
+
+  const handleTagClick = (e: React.MouseEvent, tag: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const scrollTop = sheetRef.current?.scrollTop ?? 0;
+    setFormEntry(p => ({ ...p, tags: p.tags.includes(tag) ? p.tags.filter(t => t !== tag) : [...p.tags, tag] }));
+    // タグ更新後もスクロール位置を維持
+    requestAnimationFrame(() => {
+      if (sheetRef.current) sheetRef.current.scrollTop = scrollTop;
+    });
+  };
+
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 200 }}>
-      <div style={{ background: "#F2F2F7", width: "100%", maxWidth: 640, maxHeight: "90vh", overflowY: "auto", borderRadius: "20px 20px 0 0", padding: "0 0 32px" }}>
+      <div ref={sheetRef} style={{ background: "#F2F2F7", width: "100%", maxWidth: 640, maxHeight: "90vh", overflowY: "auto", borderRadius: "20px 20px 0 0", padding: "0 0 32px" }}>
         <div style={{ display: "flex", justifyContent: "center", padding: "12px 0 4px" }}>
           <div style={{ width: 36, height: 4, background: "#D1D1D6", borderRadius: 99 }} />
         </div>
@@ -198,7 +212,8 @@ function FormSheetComponent({ closeSheet, saveEntry, sheetMode, fileInputRef, ha
             <div style={{ fontSize: 12, color: "#8E8E93", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>惹かれた要素</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
               {TAGS.map(tag => (
-                <button key={tag} onClick={() => setFormEntry(p => ({ ...p, tags: p.tags.includes(tag) ? p.tags.filter(t => t !== tag) : [...p.tags, tag] }))} style={{ padding: "6px 14px", borderRadius: 20, fontSize: 13, fontWeight: 500, background: formEntry.tags.includes(tag) ? "#007AFF" : "#F2F2F7", color: formEntry.tags.includes(tag) ? "#fff" : "#3C3C43", border: "none", cursor: "pointer", fontFamily: "inherit" }}>{tag}</button>
+                // ★ バグ②修正: type="button" を明示してフォームsubmit防止 + handleTagClick使用
+                <button type="button" key={tag} onClick={(e) => handleTagClick(e, tag)} style={{ padding: "6px 14px", borderRadius: 20, fontSize: 13, fontWeight: 500, background: formEntry.tags.includes(tag) ? "#007AFF" : "#F2F2F7", color: formEntry.tags.includes(tag) ? "#fff" : "#3C3C43", border: "none", cursor: "pointer", fontFamily: "inherit" }}>{tag}</button>
               ))}
             </div>
           </div>
@@ -233,7 +248,7 @@ export default function App() {
   const urlParams = new URLSearchParams(window.location.search);
   const projectId = urlParams.get("project");
 
-  // ★ Auth state（これが抜けていたのが原因）
+  // ★ Auth state
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [authEmail, setAuthEmail] = useState("");
@@ -284,6 +299,9 @@ export default function App() {
   const [detailProjectData, setDetailProjectData] = useState(null);
   const fileInputRef = useRef(null);
 
+  // ★ バグ①修正: 保存中フラグで二重送信を防ぐ
+  const [saving, setSaving] = useState(false);
+
   useEffect(() => {
     if (!selected?.projectId) { setSharedEntries([]); setDetailProjectData(null); return; }
     const fetchDetail = async () => {
@@ -306,6 +324,8 @@ export default function App() {
   const [newProjectTitle, setNewProjectTitle] = useState("");
   const [newProjectImage, setNewProjectImage] = useState(null);
   const [projectUrl, setProjectUrl] = useState(null);
+  // ★ バグ①修正: プロジェクト作成中フラグ
+  const [creatingProjectLoading, setCreatingProjectLoading] = useState(false);
   const projectFileRef = useRef(null);
 
   useEffect(() => {
@@ -474,21 +494,27 @@ export default function App() {
   const openEdit = (entry) => { setFormEntry({ ...entry }); setSheetMode("edit"); };
   const closeSheet = () => { setSheetMode(null); setFormEntry(EMPTY_ENTRY); };
 
+  // ★ バグ①修正: saving フラグで二重保存を防ぐ
   const saveEntry = async () => {
-    if (!formEntry.title || !currentUser) return;
-    const date = new Date().toLocaleDateString("ja-JP").replace(/\//g, ".");
-    if (sheetMode === "create") {
-      const docRef = await addDoc(collection(db, "users", currentUser.uid, "entries"), {
-        ...formEntry, date, createdAt: serverTimestamp()
-      });
-      setSelected({ ...formEntry, id: docRef.id, date });
-    } else {
-      await setDoc(doc(db, "users", currentUser.uid, "entries", formEntry.id), {
-        ...formEntry, updatedAt: serverTimestamp()
-      });
-      setSelected({ ...formEntry });
+    if (!formEntry.title || !currentUser || saving) return;
+    setSaving(true);
+    try {
+      const date = new Date().toLocaleDateString("ja-JP").replace(/\//g, ".");
+      if (sheetMode === "create") {
+        const docRef = await addDoc(collection(db, "users", currentUser.uid, "entries"), {
+          ...formEntry, date, createdAt: serverTimestamp()
+        });
+        setSelected({ ...formEntry, id: docRef.id, date });
+      } else {
+        await setDoc(doc(db, "users", currentUser.uid, "entries", formEntry.id), {
+          ...formEntry, updatedAt: serverTimestamp()
+        });
+        setSelected({ ...formEntry });
+      }
+      closeSheet();
+    } finally {
+      setSaving(false);
     }
-    closeSheet();
   };
 
   const deleteEntry = async (id: string, e: any) => {
@@ -540,15 +566,21 @@ export default function App() {
     setAuthSubmitting(false);
   };
 
+  // ★ バグ①修正: createProject に二重実行ガード
   const createProject = async () => {
-    if (!newProjectTitle) return;
-    const docRef = await addDoc(collection(db, "projects"), {
-      title: newProjectTitle,
-      image: newProjectImage,
-      createdAt: serverTimestamp(),
-    });
-    const url = `${window.location.origin}/?project=${docRef.id}`;
-    setProjectUrl(url);
+    if (!newProjectTitle || creatingProjectLoading) return;
+    setCreatingProjectLoading(true);
+    try {
+      const docRef = await addDoc(collection(db, "projects"), {
+        title: newProjectTitle,
+        image: newProjectImage,
+        createdAt: serverTimestamp(),
+      });
+      const url = `${window.location.origin}/?project=${docRef.id}`;
+      setProjectUrl(url);
+    } finally {
+      setCreatingProjectLoading(false);
+    }
   };
 
   const submitProjectEntry = async () => {
@@ -695,7 +727,7 @@ export default function App() {
                   <div style={{ fontSize: 12, color: "#8E8E93", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>惹かれた要素</div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                     {TAGS.map(tag => (
-                      <button key={tag} onClick={() => toggleTag(tag)} style={{ padding: "6px 14px", borderRadius: 20, fontSize: 13, fontWeight: 500, background: formEntry.tags.includes(tag) ? "#007AFF" : "#F2F2F7", color: formEntry.tags.includes(tag) ? "#fff" : "#3C3C43", border: "none", cursor: "pointer", fontFamily: "inherit" }}>{tag}</button>
+                      <button type="button" key={tag} onClick={() => toggleTag(tag)} style={{ padding: "6px 14px", borderRadius: 20, fontSize: 13, fontWeight: 500, background: formEntry.tags.includes(tag) ? "#007AFF" : "#F2F2F7", color: formEntry.tags.includes(tag) ? "#fff" : "#3C3C43", border: "none", cursor: "pointer", fontFamily: "inherit" }}>{tag}</button>
                     ))}
                   </div>
                 </div>
@@ -711,7 +743,7 @@ export default function App() {
                     <textarea value={formEntry.memo || ""} onChange={e => setFormEntry(p => ({ ...p, memo: e.target.value }))} rows={2} placeholder="上記以外で気になったこと" style={{ width: "100%", border: "none", fontSize: 15, background: "transparent", lineHeight: 1.5, fontFamily: "inherit", resize: "none" }} />
                   </div>
                 </div>
-                <button onClick={submitProjectEntry} style={{ background: "#007AFF", color: "#fff", border: "none", padding: "16px", borderRadius: 14, fontSize: 16, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>解剖を投稿する</button>
+                <button type="button" onClick={submitProjectEntry} style={{ background: "#007AFF", color: "#fff", border: "none", padding: "16px", borderRadius: 14, fontSize: 16, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>解剖を投稿する</button>
               </div>
             </div>
           )}
@@ -732,7 +764,7 @@ export default function App() {
           </div>
           <div style={{ display: "flex", background: "#F2F2F7", borderRadius: 10, padding: 3, marginBottom: 24 }}>
             {(["login", "signup"] as const).map(mode => (
-              <button key={mode} onClick={() => { setAuthMode(mode); setAuthError(""); }} style={{ flex: 1, padding: "8px", borderRadius: 8, border: "none", background: authMode === mode ? "#fff" : "transparent", fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: "inherit", boxShadow: authMode === mode ? "0 1px 3px rgba(0,0,0,0.12)" : "none" }}>
+              <button type="button" key={mode} onClick={() => { setAuthMode(mode); setAuthError(""); }} style={{ flex: 1, padding: "8px", borderRadius: 8, border: "none", background: authMode === mode ? "#fff" : "transparent", fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: "inherit", boxShadow: authMode === mode ? "0 1px 3px rgba(0,0,0,0.12)" : "none" }}>
                 {mode === "login" ? "ログイン" : "新規登録"}
               </button>
             ))}
@@ -742,7 +774,7 @@ export default function App() {
             <input value={authPassword} onChange={e => setAuthPassword(e.target.value)} type="password" placeholder="パスワード（6文字以上）" onKeyDown={e => e.key === "Enter" && handleAuth()} style={{ padding: "14px 16px", borderRadius: 12, border: "1px solid #E5E5EA", fontSize: 15, fontFamily: "inherit", outline: "none", background: "#F2F2F7" }} />
           </div>
           {authError && <div style={{ background: "#FFF3CD", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#856404", marginBottom: 16 }}>{authError}</div>}
-          <button onClick={handleAuth} disabled={authSubmitting || !authEmail || !authPassword} style={{ width: "100%", background: "#007AFF", color: "#fff", border: "none", padding: "16px", borderRadius: 12, fontSize: 16, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", opacity: authSubmitting ? 0.7 : 1 }}>
+          <button type="button" onClick={handleAuth} disabled={authSubmitting || !authEmail || !authPassword} style={{ width: "100%", background: "#007AFF", color: "#fff", border: "none", padding: "16px", borderRadius: 12, fontSize: 16, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", opacity: authSubmitting ? 0.7 : 1 }}>
             {authSubmitting ? "処理中..." : authMode === "login" ? "ログイン" : "アカウントを作成"}
           </button>
         </div>
@@ -758,11 +790,11 @@ export default function App() {
       <div style={{ background: "rgba(242,242,247,0.92)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderBottom: "0.5px solid rgba(0,0,0,0.12)", position: "sticky", top: 0, zIndex: 100 }}>
         <div style={{ maxWidth: 960, margin: "0 auto", padding: "0 20px", height: 52, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           {view === "detail" ? (
-            <button onClick={() => setView("home")} style={{ background: "none", border: "none", color: "#007AFF", fontSize: 17, display: "flex", alignItems: "center", gap: 4, cursor: "pointer", fontFamily: "inherit", padding: "10px 10px 10px 0", margin: "-10px 0", WebkitTapHighlightColor: "transparent", touchAction: "manipulation" }}>
+            <button type="button" onClick={() => setView("home")} style={{ background: "none", border: "none", color: "#007AFF", fontSize: 17, display: "flex", alignItems: "center", gap: 4, cursor: "pointer", fontFamily: "inherit", padding: "10px 10px 10px 0", margin: "-10px 0", WebkitTapHighlightColor: "transparent", touchAction: "manipulation" }}>
               <span style={{ fontSize: 20 }}>‹</span> Library
             </button>
           ) : (
-            <button onClick={() => setSettingProfile(true)} style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+            <button type="button" onClick={() => setSettingProfile(true)} style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
               <div style={{ width: 30, height: 30, borderRadius: 99, background: "#E5E5EA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>{userProfile?.icon || "🎨"}</div>
               <div style={{ fontSize: 15, fontWeight: 600 }}>{userProfile?.name || "Library"}</div>
             </button>
@@ -783,7 +815,7 @@ export default function App() {
           <div style={{ maxWidth: 960, margin: "0 auto", padding: "8px 20px 10px" }}>
             <div style={{ display: "inline-flex", background: "rgba(118,118,128,0.12)", borderRadius: 9, padding: 2 }}>
               {[["home", "Collection"], ["map", "Insight"], ["apply", "Apply"]].map(([v, label]) => (
-                <button key={v} className="seg-btn" onClick={() => setView(v)} style={{ padding: "5px 18px", borderRadius: 7, fontSize: 13, fontWeight: 500, background: view === v ? "#fff" : "transparent", color: view === v ? "#000" : "#666", boxShadow: view === v ? "0 1px 3px rgba(0,0,0,0.12)" : "none" }}>{label}</button>
+                <button type="button" key={v} className="seg-btn" onClick={() => setView(v)} style={{ padding: "5px 18px", borderRadius: 7, fontSize: 13, fontWeight: 500, background: view === v ? "#fff" : "transparent", color: view === v ? "#000" : "#666", boxShadow: view === v ? "0 1px 3px rgba(0,0,0,0.12)" : "none" }}>{label}</button>
               ))}
             </div>
           </div>
@@ -798,7 +830,7 @@ export default function App() {
               <div style={{ fontSize: 48, marginBottom: 16 }}>🔬</div>
               <div style={{ fontSize: 20, fontWeight: 600, marginBottom: 8 }}>悔しいと感じたら、今すぐ解剖しよう</div>
               <div style={{ fontSize: 15, color: "#8E8E93", marginBottom: 24 }}>作品を解剖して自分だけの図鑑をつくる</div>
-              <button onClick={openCreate} style={{ background: "#007AFF", color: "#fff", border: "none", padding: "12px 28px", borderRadius: 99, fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>最初の解剖をはじめる</button>
+              <button type="button" onClick={openCreate} style={{ background: "#007AFF", color: "#fff", border: "none", padding: "12px 28px", borderRadius: 99, fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>最初の解剖をはじめる</button>
             </div>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 14 }}>
@@ -811,7 +843,7 @@ export default function App() {
                       <img src={entry.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} referrerPolicy="no-referrer" />
                     ) : null}
                   </div>
-                  <button onClick={(e) => deleteEntry(entry.id, e)} style={{ position: "absolute", top: 10, right: 10, width: 28, height: 28, borderRadius: 99, background: "rgba(0,0,0,0.5)", border: "none", color: "#fff", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
+                  <button type="button" onClick={(e) => deleteEntry(entry.id, e)} style={{ position: "absolute", top: 10, right: 10, width: 28, height: 28, borderRadius: 99, background: "rgba(0,0,0,0.5)", border: "none", color: "#fff", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
                   <div style={{ padding: "14px 16px 16px" }}>
                     <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.title}</div>
                     <div style={{ fontSize: 13, color: "#8E8E93", marginBottom: 12 }}>{entry.source} · {entry.date}</div>
@@ -979,7 +1011,7 @@ export default function App() {
           ) : (
             <img src={selected.image} alt="" onClick={() => setImagePreview(false)} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", cursor: "zoom-out" }} referrerPolicy="no-referrer" />
           )}
-          <button onClick={() => setImagePreview(false)} style={{ position: "absolute", top: 20, right: 20, background: "rgba(255,255,255,0.15)", color: "#fff", border: "none", fontSize: 20, width: 40, height: 40, borderRadius: 99, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
+          <button type="button" onClick={() => setImagePreview(false)} style={{ position: "absolute", top: 20, right: 20, background: "rgba(255,255,255,0.15)", color: "#fff", border: "none", fontSize: 20, width: 40, height: 40, borderRadius: 99, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
         </div>
       )}
 
@@ -990,7 +1022,7 @@ export default function App() {
               <div style={{ width: 36, height: 4, background: "#D1D1D6", borderRadius: 99 }} />
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 20px 20px" }}>
-              <button onClick={() => { setCreatingProject(false); setProjectUrl(null); setNewProjectTitle(""); setNewProjectImage(null); }} style={{ background: "none", border: "none", color: "#007AFF", fontSize: 17, cursor: "pointer" }}>閉じる</button>
+              <button type="button" onClick={() => { setCreatingProject(false); setProjectUrl(null); setNewProjectTitle(""); setNewProjectImage(null); setCreatingProjectLoading(false); }} style={{ background: "none", border: "none", color: "#007AFF", fontSize: 17, cursor: "pointer" }}>閉じる</button>
               <div style={{ fontSize: 17, fontWeight: 600 }}>共有プロジェクト</div>
               <div style={{ width: 60 }} />
             </div>
@@ -1000,7 +1032,7 @@ export default function App() {
                 <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>プロジェクト作成完了</div>
                 <div style={{ fontSize: 15, color: "#8E8E93", marginBottom: 24 }}>このURLを共有して一緒に解剖しよう</div>
                 <div style={{ background: "#fff", borderRadius: 12, padding: "14px 16px", marginBottom: 16, wordBreak: "break-all", fontSize: 13, color: "#007AFF" }}>{projectUrl}</div>
-                <button onClick={() => { navigator.clipboard.writeText(projectUrl); }} style={{ width: "100%", background: "#007AFF", color: "#fff", border: "none", padding: "14px", borderRadius: 12, fontSize: 16, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>URLをコピー</button>
+                <button type="button" onClick={() => { navigator.clipboard.writeText(projectUrl); }} style={{ width: "100%", background: "#007AFF", color: "#fff", border: "none", padding: "14px", borderRadius: 12, fontSize: 16, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>URLをコピー</button>
               </div>
             ) : (
               <div style={{ padding: "0 16px", display: "flex", flexDirection: "column", gap: 10 }}>
@@ -1008,7 +1040,7 @@ export default function App() {
                 {newProjectImage ? (
                   <div style={{ position: "relative", height: 180, borderRadius: 14, overflow: "hidden" }}>
                     <img src={newProjectImage} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} referrerPolicy="no-referrer" />
-                    <button onClick={() => setNewProjectImage(null)} style={{ position: "absolute", top: 10, right: 10, background: "rgba(0,0,0,0.55)", color: "#fff", border: "none", fontSize: 12, padding: "5px 12px", borderRadius: 20, cursor: "pointer" }}>削除</button>
+                    <button type="button" onClick={() => setNewProjectImage(null)} style={{ position: "absolute", top: 10, right: 10, background: "rgba(0,0,0,0.55)", color: "#fff", border: "none", fontSize: 12, padding: "5px 12px", borderRadius: 20, cursor: "pointer" }}>削除</button>
                   </div>
                 ) : (
                   <div onClick={() => projectFileRef.current.click()} style={{ height: 100, background: "#fff", borderRadius: 14, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6, cursor: "pointer" }}>
@@ -1019,7 +1051,10 @@ export default function App() {
                 <div style={{ background: "#fff", borderRadius: 14 }}>
                   <input value={newProjectTitle} onChange={e => setNewProjectTitle(e.target.value)} placeholder="作品タイトル" style={{ display: "block", width: "100%", padding: "14px 16px", fontSize: 15, border: "none", background: "transparent", fontFamily: "inherit", outline: "none", borderRadius: 14 }} />
                 </div>
-                <button onClick={createProject} style={{ background: "#007AFF", color: "#fff", border: "none", padding: "16px", borderRadius: 14, fontSize: 16, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>プロジェクトを作成してURLを発行</button>
+                {/* ★ バグ①修正: disabled と loading 表示を追加 */}
+                <button type="button" onClick={createProject} disabled={creatingProjectLoading || !newProjectTitle} style={{ background: creatingProjectLoading ? "#E5E5EA" : "#007AFF", color: creatingProjectLoading ? "#8E8E93" : "#fff", border: "none", padding: "16px", borderRadius: 14, fontSize: 16, fontWeight: 600, cursor: creatingProjectLoading ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+                  {creatingProjectLoading ? "作成中..." : "プロジェクトを作成してURLを発行"}
+                </button>
               </div>
             )}
           </div>
@@ -1043,15 +1078,15 @@ export default function App() {
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center", marginBottom: 20 }}>
               {ICONS.map(icon => (
-                <button key={icon} onClick={() => setProfileForm(p => ({ ...p, icon }))} style={{ width: 44, height: 44, borderRadius: 12, background: profileForm.icon === icon ? "#007AFF" : "#fff", fontSize: 22, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>{icon}</button>
+                <button type="button" key={icon} onClick={() => setProfileForm(p => ({ ...p, icon }))} style={{ width: 44, height: 44, borderRadius: 12, background: profileForm.icon === icon ? "#007AFF" : "#fff", fontSize: 22, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>{icon}</button>
               ))}
             </div>
             <div style={{ background: "#fff", borderRadius: 14, marginBottom: 16 }}>
               <input value={profileForm.name} onChange={e => setProfileForm(p => ({ ...p, name: e.target.value }))} placeholder="名前を入力" style={{ display: "block", width: "100%", padding: "14px 16px", fontSize: 16, border: "none", background: "transparent", fontFamily: "inherit", outline: "none", borderRadius: 14 }} />
             </div>
             <div style={{ display: "flex", gap: 10 }}>
-              {settingProfile && <button onClick={() => setSettingProfile(false)} style={{ flex: 1, background: "#E5E5EA", color: "#000", border: "none", padding: "14px", borderRadius: 12, fontSize: 16, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>キャンセル</button>}
-              <button onClick={() => { if (!profileForm.name) return; const p = { name: profileForm.name, icon: profileForm.icon }; localStorage.setItem("naosu-profile", JSON.stringify(p)); setUserProfile(p); setSettingProfile(false); }} style={{ flex: 1, background: "#007AFF", color: "#fff", border: "none", padding: "14px", borderRadius: 12, fontSize: 16, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>{settingProfile ? "保存" : "始める"}</button>
+              {settingProfile && <button type="button" onClick={() => setSettingProfile(false)} style={{ flex: 1, background: "#E5E5EA", color: "#000", border: "none", padding: "14px", borderRadius: 12, fontSize: 16, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>キャンセル</button>}
+              <button type="button" onClick={() => { if (!profileForm.name) return; const p = { name: profileForm.name, icon: profileForm.icon }; localStorage.setItem("naosu-profile", JSON.stringify(p)); setUserProfile(p); setSettingProfile(false); }} style={{ flex: 1, background: "#007AFF", color: "#fff", border: "none", padding: "14px", borderRadius: 12, fontSize: 16, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>{settingProfile ? "保存" : "始める"}</button>
             </div>
           </div>
         </div>
