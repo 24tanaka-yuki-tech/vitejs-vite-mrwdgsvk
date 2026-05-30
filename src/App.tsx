@@ -6,10 +6,10 @@ const ICONS = ["🎨","🖌️","✏️","📐","💡","🔍","🌸","🌙","⭐
 
 
 function ApplyPage({ entries }: { entries: any[] }) {
-  const [theme, setTheme] = React.useState("");
-  const [loading, setLoading] = React.useState(false);
-  const [result, setResult] = React.useState<any>(null);
-  const [error, setError] = React.useState("");
+  const [theme, setTheme] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<any>(null);
+  const [error, setError] = useState("");
 
   const generate = async () => {
     if (!theme) return;
