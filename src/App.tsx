@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from "react";
-import { db, auth } from "./firebase";
+import { db, auth, storage } from "./firebase";
 import { collection, addDoc, onSnapshot, doc, getDoc, setDoc, deleteDoc, serverTimestamp, query, orderBy } from "firebase/firestore";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 const ICONS = ["🎨","🖌️","✏️","📐","💡","🔍","🌸","🌙","⭐","🔥","💫","🌊","🦋","🌿","🎯","🦄","🐼","🐸","🦊","🐱"];
 
@@ -474,20 +475,29 @@ export default function App() {
 
   const handleImageUpload = (e) => {
     const file = e.target.files[0]; if (!file) return;
-    const reader = new FileReader();
     if (file.type === "application/pdf") {
+      const reader = new FileReader();
       reader.onload = (ev) => setFormEntry(p => ({ ...p, image: "pdf", pdfData: ev.target.result }));
+      reader.readAsDataURL(file);
     } else {
-      reader.onload = (ev) => setFormEntry(p => ({ ...p, image: ev.target.result, pdfData: null }));
+      // ★ Firebase Storageにアップロードしてから、URLだけ保存（1MB制限回避）
+      const storageRef = ref(storage, `images/${Date.now()}_${file.name}`);
+      uploadBytes(storageRef, file).then((snapshot) => {
+        getDownloadURL(snapshot.ref).then((url) => {
+          setFormEntry(p => ({ ...p, image: url, pdfData: null }));
+        });
+      });
     }
-    reader.readAsDataURL(file);
   };
 
   const handleProjectImageUpload = (e) => {
     const file = e.target.files[0]; if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => setNewProjectImage(ev.target.result);
-    reader.readAsDataURL(file);
+    const storageRef = ref(storage, `project-images/${Date.now()}_${file.name}`);
+    uploadBytes(storageRef, file).then((snapshot) => {
+      getDownloadURL(snapshot.ref).then((url) => {
+        setNewProjectImage(url);
+      });
+    });
   };
 
   const openCreate = () => { setFormEntry(EMPTY_ENTRY); setSheetMode("create"); };
