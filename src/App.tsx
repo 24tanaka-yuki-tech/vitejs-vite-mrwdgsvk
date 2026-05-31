@@ -11,8 +11,15 @@ const QUESTIONS = [
   { id: "q3", label: "このデザインが解いている課題・テーマの仮説", placeholder: "どんな問いや目的があって作られたんだろう" },
   { id: "q4", label: "自分の作品に持ち込めること", placeholder: "具体的に学べること" },
 ];
-// ★ 複数枚対応: imagesを配列に、imageは削除
-const EMPTY_ENTRY = { title: "", source: "", url: "", images: [] as string[], pdfData: null, color: "#C8C8C8", tags: [], answers: { q1: "", q2: "", q3: "", q4: "" }, memo: "", firstImpression: "" };
+// ★ デザインフェーズ定義
+const PHASES = [
+  { id: "theme",      label: "テーマ・問いの設定", desc: "何を解くかの設定が面白い",     color: "#FF6B6B" },
+  { id: "research",   label: "リサーチ・観察",     desc: "調査や視点の切り口が面白い",   color: "#FF9F43" },
+  { id: "concept",    label: "仮説・コンセプト",   desc: "解釈やコンセプト設計が面白い", color: "#54A0FF" },
+  { id: "solution",   label: "解決策・アイデア",   desc: "アイデアの発想が面白い",       color: "#5F27CD" },
+  { id: "expression", label: "表現・仕上げ",       desc: "ビジュアルや表現が面白い",     color: "#00D2D3" },
+];
+const EMPTY_ENTRY = { title: "", source: "", url: "", images: [] as string[], pdfData: null, color: "#C8C8C8", tags: [], phase: "" as string, answers: { q1: "", q2: "", q3: "", q4: "" }, memo: "", firstImpression: "" };
 
 // 画像をcanvasで圧縮（800px・JPEG70%）
 function compressImage(file: File): Promise<string> {
@@ -120,6 +127,26 @@ function FormSheetComponent({ closeSheet, saveEntry, sheetMode, fileInputRef, ha
               {TAGS.map(tag => (
                 <button type="button" key={tag} onClick={(e) => handleTagClick(e, tag)} style={{ padding: "6px 14px", borderRadius: 20, fontSize: 13, fontWeight: 500, background: formEntry.tags.includes(tag) ? "#007AFF" : "#F2F2F7", color: formEntry.tags.includes(tag) ? "#fff" : "#3C3C43", border: "none", cursor: "pointer", fontFamily: "inherit" }}>{tag}</button>
               ))}
+            </div>
+          </div>
+
+          {/* ★ フェーズ選択: AI解剖後に自分で考えて選ぶ */}
+          <div style={{ background: "#fff", borderRadius: 14, padding: "14px 16px" }}>
+            <div style={{ fontSize: 12, color: "#8E8E93", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>この作品の面白さはどのフェーズ？</div>
+            <div style={{ fontSize: 11, color: "#C7C7CC", marginBottom: 12 }}>AI解剖を読んだ上で、自分で選ぼう</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {PHASES.map((phase, i) => {
+                const selected = formEntry.phase === phase.id;
+                return (
+                  <button type="button" key={phase.id} onClick={(e) => { e.preventDefault(); const scrollTop = sheetRef.current?.scrollTop ?? 0; setFormEntry(p => ({ ...p, phase: p.phase === phase.id ? "" : phase.id })); requestAnimationFrame(() => { if (sheetRef.current) sheetRef.current.scrollTop = scrollTop; }); }} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderRadius: 12, background: selected ? phase.color + "18" : "#F2F2F7", border: selected ? `1.5px solid ${phase.color}` : "1.5px solid transparent", cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}>
+                    <div style={{ width: 28, height: 28, borderRadius: 99, background: selected ? phase.color : "#E5E5EA", color: "#fff", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{String(i + 1).padStart(2, "0")}</div>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: selected ? phase.color : "#000" }}>{phase.label}</div>
+                      <div style={{ fontSize: 11, color: "#8E8E93", marginTop: 1 }}>{phase.desc}</div>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -239,6 +266,7 @@ export default function App() {
   const tagCounts: Record<string, number> = {};
   entries.forEach(e => (e.tags || []).forEach(t => { tagCounts[t] = (tagCounts[t] || 0) + 1; }));
   const maxCount = Math.max(...Object.values(tagCounts), 1);
+  const [insightTag, setInsightTag] = useState<string | null>(null);
 
   const toggleTag = (tag: string) => setFormEntry(p => ({ ...p, tags: p.tags.includes(tag) ? p.tags.filter(t => t !== tag) : [...p.tags, tag] }));
 
@@ -685,6 +713,18 @@ export default function App() {
                 {(selected.tags || []).map(tag => <span key={tag} style={{ fontSize: 13, background: "#E5E5EA", color: "#3C3C43", padding: "4px 12px", borderRadius: 20, fontWeight: 500 }}>{tag}</span>)}
               </div>
 
+              {/* ★ フェーズ表示 */}
+              {selected.phase && (() => {
+                const p = PHASES.find(p => p.id === selected.phase);
+                return p ? (
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: p.color + "18", border: `1.5px solid ${p.color}`, borderRadius: 12, padding: "8px 14px", marginBottom: 20 }}>
+                    <div style={{ width: 10, height: 10, borderRadius: 99, background: p.color }} />
+                    <span style={{ fontSize: 13, fontWeight: 600, color: p.color }}>{p.label}</span>
+                    <span style={{ fontSize: 12, color: "#8E8E93" }}>のフェーズが面白い</span>
+                  </div>
+                ) : null;
+              })()}
+
               {/* ★ 第一印象を詳細画面にも表示 */}
               {selected.firstImpression && (
                 <div style={{ background: "#fff", borderRadius: 12, padding: "14px 18px", marginBottom: 16 }}>
@@ -747,22 +787,72 @@ export default function App() {
       {view === "map" && (
         <main style={{ maxWidth: 720, margin: "0 auto", padding: "24px 20px" }}>
           <div style={{ fontSize: 34, fontWeight: 700, letterSpacing: "-0.5px", marginBottom: 24 }}>Insight</div>
+
+          {/* ★ フェーズ分布 */}
           <div style={{ background: "#fff", borderRadius: 16, padding: "20px", marginBottom: 16 }}>
-            <div style={{ fontSize: 13, color: "#8E8E93", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 18 }}>よく反応する要素</div>
+            <div style={{ fontSize: 13, color: "#8E8E93", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 18 }}>反応するフェーズ</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {PHASES.map(phase => {
+                const count = entries.filter(e => e.phase === phase.id).length;
+                const pct = entries.length > 0 ? (count / entries.length) * 100 : 0;
+                return (
+                  <div key={phase.id}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
+                      <span style={{ fontSize: 14, fontWeight: 500 }}>{phase.label}</span>
+                      <span style={{ fontSize: 13, color: "#8E8E93" }}>{count}</span>
+                    </div>
+                    <div style={{ height: 6, background: "#F2F2F7", borderRadius: 99 }}>
+                      <div style={{ height: "100%", width: `${pct}%`, background: phase.color, borderRadius: 99, transition: "width 0.4s" }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* タグ分布（タップで絞り込み） */}
+          <div style={{ background: "#fff", borderRadius: 16, padding: "20px", marginBottom: 16 }}>
+            <div style={{ fontSize: 13, color: "#8E8E93", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>よく反応する要素</div>
+            <div style={{ fontSize: 11, color: "#C7C7CC", marginBottom: 16 }}>タップするとその作品を見られます</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {Object.entries(tagCounts).sort((a, b) => (b[1] as number) - (a[1] as number)).map(([tag, count]) => (
-                <div key={tag}>
+                <div key={tag} onClick={() => { setInsightTag(insightTag === tag ? null : tag); }} style={{ cursor: "pointer" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-                    <span style={{ fontSize: 14, fontWeight: 500 }}>{tag}</span>
+                    <span style={{ fontSize: 14, fontWeight: 500, color: insightTag === tag ? "#007AFF" : "#000" }}>{tag}</span>
                     <span style={{ fontSize: 13, color: "#8E8E93" }}>{count as number}</span>
                   </div>
                   <div style={{ height: 4, background: "#F2F2F7", borderRadius: 99 }}>
-                    <div style={{ height: "100%", width: `${((count as number) / maxCount) * 100}%`, background: "#007AFF", borderRadius: 99 }} />
+                    <div style={{ height: "100%", width: `${((count as number) / maxCount) * 100}%`, background: insightTag === tag ? "#007AFF" : "#C7C7CC", borderRadius: 99, transition: "all 0.3s" }} />
                   </div>
                 </div>
               ))}
             </div>
           </div>
+
+          {/* ★ タグ絞り込み結果 */}
+          {insightTag && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>「{insightTag}」に反応した作品</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {entries.filter(e => (e.tags || []).includes(insightTag)).map(entry => {
+                  const imgs = entry.images || (entry.image ? [entry.image] : []);
+                  const phase = PHASES.find(p => p.id === entry.phase);
+                  return (
+                    <div key={entry.id} onClick={() => { openDetail(entry); setInsightTag(null); }} style={{ background: "#fff", borderRadius: 14, padding: "14px 16px", display: "flex", gap: 14, alignItems: "center", cursor: "pointer" }}>
+                      {imgs[0] && <img src={imgs[0]} alt="" style={{ width: 56, height: 56, objectFit: "cover", borderRadius: 10, flexShrink: 0 }} referrerPolicy="no-referrer" />}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.title}</div>
+                        <div style={{ fontSize: 12, color: "#8E8E93", marginBottom: 6 }}>{entry.source} · {entry.date}</div>
+                        {phase && <span style={{ fontSize: 11, fontWeight: 600, color: phase.color, background: phase.color + "18", padding: "2px 8px", borderRadius: 20 }}>{phase.label}</span>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Stats */}
           <div style={{ background: "#fff", borderRadius: 16, padding: "20px" }}>
             <div style={{ fontSize: 13, color: "#8E8E93", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 16 }}>Stats</div>
             <div style={{ display: "flex", gap: 12 }}>
