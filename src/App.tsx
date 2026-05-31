@@ -535,6 +535,15 @@ export default function App() {
       createdAt: serverTimestamp(),
     });
     const pid = docRef.id;
+
+    // ★ Firestoreのentryにもprojectidを保存（リロードしても消えないように）
+    if (currentUser && entry.id) {
+      await setDoc(
+        doc(db, "users", currentUser.uid, "entries", entry.id),
+        { ...entry, projectId: pid },
+      );
+    }
+
     setEntries(p => p.map(e => e.id === entry.id ? { ...e, projectId: pid } : e));
     setSelected(s => s ? { ...s, projectId: pid } : s);
     const url = `${window.location.origin}/?project=${pid}`;
