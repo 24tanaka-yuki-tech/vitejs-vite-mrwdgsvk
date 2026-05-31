@@ -1,8 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { db, auth, storage } from "./firebase";
+import { db, auth } from "./firebase";
 import { collection, addDoc, onSnapshot, doc, getDoc, setDoc, deleteDoc, serverTimestamp, query, orderBy } from "firebase/firestore";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 const ICONS = ["🎨","🖌️","✏️","📐","💡","🔍","🌸","🌙","⭐","🔥","💫","🌊","🦋","🌿","🎯","🦄","🐼","🐸","🦊","🐱"];
 
@@ -480,24 +479,45 @@ export default function App() {
       reader.onload = (ev) => setFormEntry(p => ({ ...p, image: "pdf", pdfData: ev.target.result }));
       reader.readAsDataURL(file);
     } else {
-      // ★ Firebase Storageにアップロードしてから、URLだけ保存（1MB制限回避）
-      const storageRef = ref(storage, `images/${Date.now()}_${file.name}`);
-      uploadBytes(storageRef, file).then((snapshot) => {
-        getDownloadURL(snapshot.ref).then((url) => {
-          setFormEntry(p => ({ ...p, image: url, pdfData: null }));
-        });
-      });
+      // ★ canvasで800px・JPEG70%に圧縮してFirestoreの1MB制限を回避
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          const MAX = 800;
+          let w = img.width, h = img.height;
+          if (w > h && w > MAX) { h = h * MAX / w; w = MAX; }
+          else if (h > MAX) { w = w * MAX / h; h = MAX; }
+          canvas.width = w; canvas.height = h;
+          canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+          const compressed = canvas.toDataURL("image/jpeg", 0.7);
+          setFormEntry(p => ({ ...p, image: compressed, pdfData: null }));
+        };
+        img.src = ev.target.result as string;
+      };
+      reader.readAsDataURL(file);
     }
   };
 
   const handleProjectImageUpload = (e) => {
     const file = e.target.files[0]; if (!file) return;
-    const storageRef = ref(storage, `project-images/${Date.now()}_${file.name}`);
-    uploadBytes(storageRef, file).then((snapshot) => {
-      getDownloadURL(snapshot.ref).then((url) => {
-        setNewProjectImage(url);
-      });
-    });
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const MAX = 800;
+        let w = img.width, h = img.height;
+        if (w > h && w > MAX) { h = h * MAX / w; w = MAX; }
+        else if (h > MAX) { w = w * MAX / h; h = MAX; }
+        canvas.width = w; canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        setNewProjectImage(canvas.toDataURL("image/jpeg", 0.7));
+      };
+      img.src = ev.target.result as string;
+    };
+    reader.readAsDataURL(file);
   };
 
   const openCreate = () => { setFormEntry(EMPTY_ENTRY); setSheetMode("create"); };
