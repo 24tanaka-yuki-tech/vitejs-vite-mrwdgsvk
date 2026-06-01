@@ -267,6 +267,44 @@ export default function App() {
   entries.forEach(e => (e.tags || []).forEach(t => { tagCounts[t] = (tagCounts[t] || 0) + 1; }));
   const maxCount = Math.max(...Object.values(tagCounts), 1);
   const [insightTag, setInsightTag] = useState<string | null>(null);
+  const [diagnosis, setDiagnosis] = useState("");
+  const [diagnosisLoading, setDiagnosisLoading] = useState(false);
+  const diagnosisCountRef = useRef(0);
+
+  useEffect(() => {
+    if (entries.length < 5) { setDiagnosis(""); return; }
+    // entriesの数が変わった時だけ再生成
+    if (diagnosisCountRef.current === entries.length) return;
+    diagnosisCountRef.current = entries.length;
+    const generate = async () => {
+      setDiagnosisLoading(true);
+      try {
+        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+        const data = entries.slice(-30).map(e => ({
+          title: e.title,
+          tags: e.tags || [],
+          phase: e.phase || "",
+          firstImpression: e.firstImpression || "",
+        }));
+        const prompt = `デザイン学生の解剖図鑑データを分析して、今の段階でこの人がどんな面白さに気づける人かを診断してください。
+
+解剖データ:
+${data.map(e => `・${e.title}｜タグ[${e.tags.join(",")}]｜フェーズ[${e.phase}]｜第一印象「${e.firstImpression}」`).join("\n")}
+
+「あなたは今〜な面白さに気づける人です」という形で、現時点での審美眼を80文字以内で一言診断してください。説明は不要、診断文だけ返してください。`;
+
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+          { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) }
+        );
+        const json = await res.json();
+        const text = json.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        if (text) setDiagnosis(text.trim());
+      } catch {}
+      setDiagnosisLoading(false);
+    };
+    generate();
+  }, [entries.length]);
 
   const toggleTag = (tag: string) => setFormEntry(p => ({ ...p, tags: p.tags.includes(tag) ? p.tags.filter(t => t !== tag) : [...p.tags, tag] }));
 
@@ -788,7 +826,21 @@ export default function App() {
         <main style={{ maxWidth: 720, margin: "0 auto", padding: "24px 20px" }}>
           <div style={{ fontSize: 34, fontWeight: 700, letterSpacing: "-0.5px", marginBottom: 24 }}>Insight</div>
 
-          {/* ★ フェーズ分布 */}
+          {/* ★ 審美眼診断：常時表示 */}
+          <div style={{ background: "#fff", borderRadius: 16, padding: "20px", marginBottom: 16 }}>
+            <div style={{ fontSize: 13, color: "#8E8E93", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>今のあなたの審美眼</div>
+            {entries.length < 5 ? (
+              <div style={{ textAlign: "center", padding: "12px 0" }}>
+                <div style={{ fontSize: 28, marginBottom: 8 }}>🌱</div>
+                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>あと{5 - entries.length}作品で診断できます</div>
+                <div style={{ fontSize: 12, color: "#8E8E93" }}>解剖を重ねるほど精度が上がります</div>
+              </div>
+            ) : diagnosisLoading ? (
+              <div style={{ fontSize: 14, color: "#8E8E93", padding: "8px 0" }}>診断中...</div>
+            ) : diagnosis ? (
+              <div style={{ fontSize: 16, lineHeight: 1.8, color: "#111", fontWeight: 500 }}>{diagnosis}</div>
+            ) : null}
+          </div>
           <div style={{ background: "#fff", borderRadius: 16, padding: "20px", marginBottom: 16 }}>
             <div style={{ fontSize: 13, color: "#8E8E93", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 18 }}>反応するフェーズ</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
