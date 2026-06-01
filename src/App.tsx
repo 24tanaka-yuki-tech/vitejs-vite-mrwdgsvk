@@ -105,8 +105,8 @@ function FormSheetComponent({ closeSheet, saveEntry, sheetMode, fileInputRef, ha
             <div style={{ fontSize: 12, color: "#8E8E93", fontWeight: 600, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>💬 なぜ良いと思った？</div>
             <textarea
               ref={firstImpressionRef}
-              value={formEntry.firstImpression || ""}
-              onChange={e => setFormEntry(p => ({ ...p, firstImpression: e.target.value }))}
+              defaultValue={formEntry.firstImpression || ""}
+              onBlur={e => setFormEntry(p => ({ ...p, firstImpression: e.target.value }))}
               rows={2}
               placeholder="なぜ良いと思った？一言で"
               style={{ width: "100%", border: "none", fontSize: 15, color: "#000", background: "transparent", lineHeight: 1.5, fontFamily: "inherit", resize: "none", outline: "none" }}
