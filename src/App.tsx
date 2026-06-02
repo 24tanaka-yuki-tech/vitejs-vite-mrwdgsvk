@@ -130,7 +130,21 @@ function FormSheetComponent({ closeSheet, saveEntry, sheetMode, fileInputRef, ha
             </div>
           </div>
 
-          {/* ★ フェーズ選択: AI解剖後に自分で考えて選ぶ */}
+          {/* 解剖Q&A */}
+          <div style={{ background: "#fff", borderRadius: 14, overflow: "hidden" }}>
+            {QUESTIONS.map((q, i) => (
+              <div key={q.id} style={{ borderBottom: "0.5px solid #E5E5EA", padding: "14px 16px" }}>
+                <div style={{ fontSize: 12, color: "#8E8E93", fontWeight: 600, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>{String(i + 1).padStart(2, "0")} · {q.label}</div>
+                <textarea key={`${q.id}-${aiVersion}`} defaultValue={formEntry.answers[q.id]} onBlur={e => setFormEntry(p => ({ ...p, answers: { ...p.answers, [q.id]: e.target.value } }))} rows={2} placeholder={q.placeholder} style={{ width: "100%", border: "none", fontSize: 15, color: "#000", background: "transparent", lineHeight: 1.5, fontFamily: "inherit", resize: "none", outline: "none" }} />
+              </div>
+            ))}
+            <div style={{ padding: "14px 16px" }}>
+              <div style={{ fontSize: 12, color: "#8E8E93", fontWeight: 600, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>その他 · メモ</div>
+              <textarea key={`memo-${aiVersion}`} defaultValue={formEntry.memo || ""} onBlur={e => setFormEntry(p => ({ ...p, memo: e.target.value }))} rows={3} placeholder="上記以外で気になったこと" style={{ width: "100%", border: "none", fontSize: 15, color: "#000", background: "transparent", lineHeight: 1.5, fontFamily: "inherit", resize: "none", outline: "none" }} />
+            </div>
+          </div>
+
+          {/* ★ フェーズ選択: Q&Aの下に移動 */}
           <div style={{ background: "#fff", borderRadius: 14, padding: "14px 16px" }}>
             <div style={{ fontSize: 12, color: "#8E8E93", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>この作品の面白さはどのフェーズ？</div>
             <div style={{ fontSize: 11, color: "#C7C7CC", marginBottom: 12 }}>AI解剖を読んだ上で、自分で選ぼう</div>
@@ -147,20 +161,6 @@ function FormSheetComponent({ closeSheet, saveEntry, sheetMode, fileInputRef, ha
                   </button>
                 );
               })}
-            </div>
-          </div>
-
-          {/* 解剖Q&A */}
-          <div style={{ background: "#fff", borderRadius: 14, overflow: "hidden" }}>
-            {QUESTIONS.map((q, i) => (
-              <div key={q.id} style={{ borderBottom: "0.5px solid #E5E5EA", padding: "14px 16px" }}>
-                <div style={{ fontSize: 12, color: "#8E8E93", fontWeight: 600, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>{String(i + 1).padStart(2, "0")} · {q.label}</div>
-                <textarea key={`${q.id}-${aiVersion}`} defaultValue={formEntry.answers[q.id]} onBlur={e => setFormEntry(p => ({ ...p, answers: { ...p.answers, [q.id]: e.target.value } }))} rows={2} placeholder={q.placeholder} style={{ width: "100%", border: "none", fontSize: 15, color: "#000", background: "transparent", lineHeight: 1.5, fontFamily: "inherit", resize: "none", outline: "none" }} />
-              </div>
-            ))}
-            <div style={{ padding: "14px 16px" }}>
-              <div style={{ fontSize: 12, color: "#8E8E93", fontWeight: 600, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>その他 · メモ</div>
-              <textarea key={`memo-${aiVersion}`} defaultValue={formEntry.memo || ""} onBlur={e => setFormEntry(p => ({ ...p, memo: e.target.value }))} rows={3} placeholder="上記以外で気になったこと" style={{ width: "100%", border: "none", fontSize: 15, color: "#000", background: "transparent", lineHeight: 1.5, fontFamily: "inherit", resize: "none", outline: "none" }} />
             </div>
           </div>
         </div>
@@ -397,9 +397,9 @@ ${data.map(e => `・${e.title}｜タグ[${e.tags.join(",")}]｜フェーズ[${e.
     setNewProjectImage(url);
   };
 
-  const openCreate = () => { setFormEntry(EMPTY_ENTRY); setSheetMode("create"); };
-  const openEdit = (entry: any) => { setFormEntry({ ...entry, images: entry.images || (entry.image ? [entry.image] : []) }); setSheetMode("edit"); };
-  const closeSheet = () => { setSheetMode(null); setFormEntry(EMPTY_ENTRY); };
+  const openCreate = () => { setFormEntry(EMPTY_ENTRY); setUrlInput(""); setSheetMode("create"); };
+  const openEdit = (entry: any) => { setFormEntry({ ...entry, images: entry.images || (entry.image ? [entry.image] : []) }); setUrlInput(""); setSheetMode("edit"); };
+  const closeSheet = () => { setSheetMode(null); setFormEntry(EMPTY_ENTRY); setUrlInput(""); };
 
   const saveEntry = async () => {
     if (!formEntry.title || !currentUser || saving) return;
@@ -484,14 +484,19 @@ ${data.map(e => `・${e.title}｜タグ[${e.tags.join(",")}]｜フェーズ[${e.
       userName, userIcon: userProfile?.icon || "🎨", tags: formEntry.tags, answers, memo: formEntry.memo || "", createdAt: serverTimestamp(),
     });
     if (currentUser) {
-      await addDoc(collection(db, "users", currentUser.uid, "entries"), {
+      const newEntry = {
         title: projectData.title, source: projectData.source || "共有プロジェクト",
         images: projectData.image ? [projectData.image] : [], pdfData: null, color: "#8B9E8F",
         tags: formEntry.tags, answers: formEntry.answers, memo: formEntry.memo || "",
         firstImpression: formEntry.firstImpression || "",
         date: new Date().toLocaleDateString("ja-JP").replace(/\//g, "."),
         projectId, createdAt: serverTimestamp(),
-      });
+      };
+      const docRef = await addDoc(collection(db, "users", currentUser.uid, "entries"), newEntry);
+      // ★ 共有者の詳細画面にも反映されるよう、selectedとentriesを更新
+      const addedEntry = { ...newEntry, id: docRef.id };
+      setEntries(p => [addedEntry, ...p]);
+      setSelected(addedEntry);
     }
     setProjectSubmitted(true);
   };
@@ -656,7 +661,6 @@ ${data.map(e => `・${e.title}｜タグ[${e.tags.join(",")}]｜フェーズ[${e.
           ) : (
             <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
               <button className="sf-btn" onClick={openCreate} style={{ background: "none", color: "#007AFF", fontSize: 28, lineHeight: 1, fontWeight: 300 }}>+</button>
-              <button className="sf-btn" onClick={() => signOut(auth)} style={{ background: "none", color: "#8E8E93", fontSize: 13 }}>ログアウト</button>
             </div>
           )}
         </div>
@@ -987,6 +991,9 @@ ${data.map(e => `・${e.title}｜タグ[${e.tags.join(",")}]｜フェーズ[${e.
               {settingProfile && <button type="button" onClick={() => setSettingProfile(false)} style={{ flex: 1, background: "#E5E5EA", color: "#000", border: "none", padding: "14px", borderRadius: 12, fontSize: 16, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>キャンセル</button>}
               <button type="button" onClick={() => { if (!profileForm.name) return; const p = { name: profileForm.name, icon: profileForm.icon }; localStorage.setItem("naosu-profile", JSON.stringify(p)); setUserProfile(p); setSettingProfile(false); }} style={{ flex: 1, background: "#007AFF", color: "#fff", border: "none", padding: "14px", borderRadius: 12, fontSize: 16, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>{settingProfile ? "保存" : "始める"}</button>
             </div>
+            {settingProfile && (
+              <button type="button" onClick={() => signOut(auth)} style={{ width: "100%", background: "none", border: "none", color: "#FF3B30", fontSize: 15, fontWeight: 500, cursor: "pointer", fontFamily: "inherit", marginTop: 16, padding: "10px 0" }}>ログアウト</button>
+            )}
           </div>
         </div>
       )}
