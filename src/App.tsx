@@ -267,13 +267,23 @@ export default function App() {
   entries.forEach(e => (e.tags || []).forEach(t => { tagCounts[t] = (tagCounts[t] || 0) + 1; }));
   const maxCount = Math.max(...Object.values(tagCounts), 1);
   const [insightTag, setInsightTag] = useState<string | null>(null);
-  const [diagnosis, setDiagnosis] = useState("");
+  const [diagnosis, setDiagnosis] = useState(() => {
+    // ★ キャッシュから読み込み
+    try { return localStorage.getItem("naosu-diagnosis") || ""; } catch { return ""; }
+  });
   const [diagnosisLoading, setDiagnosisLoading] = useState(false);
   const diagnosisCountRef = useRef(0);
 
   useEffect(() => {
     if (entries.length < 5) { setDiagnosis(""); return; }
-    // entriesの数が変わった時だけ再生成
+    // ★ 同じ件数かつキャッシュがあれば再リクエストしない
+    const cached = localStorage.getItem("naosu-diagnosis");
+    const cachedCount = parseInt(localStorage.getItem("naosu-diagnosis-count") || "0");
+    if (cached && cachedCount === entries.length) {
+      setDiagnosis(cached);
+      diagnosisCountRef.current = entries.length;
+      return;
+    }
     if (diagnosisCountRef.current === entries.length) return;
     diagnosisCountRef.current = entries.length;
     const generate = async () => {
@@ -299,7 +309,12 @@ ${data.map(e => `・${e.title}｜タグ[${e.tags.join(",")}]｜フェーズ[${e.
         );
         const json = await res.json();
         const text = json.candidates?.[0]?.content?.parts?.[0]?.text || "";
-        if (text) setDiagnosis(text.trim());
+        if (text) {
+          setDiagnosis(text.trim());
+          // ★ キャッシュに保存
+          localStorage.setItem("naosu-diagnosis", text.trim());
+          localStorage.setItem("naosu-diagnosis-count", String(entries.length));
+        }
       } catch {}
       setDiagnosisLoading(false);
     };
